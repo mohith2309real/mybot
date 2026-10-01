@@ -1,0 +1,12 @@
+node_modules/
+*.log
+.DS_Store
+
+# Never commit local state — the vault holds encrypted API keys and the db
+# holds task logs that may contain page contents.
+.mybot/
+*.db
+*.db-wal
+*.db-shm
+keys.enc
+.env

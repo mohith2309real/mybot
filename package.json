@@ -1,0 +1,29 @@
+{
+  "name": "mybot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Self-hosted AI teammate harness — own models, own sandbox, human-in-the-loop takeover.",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "bin": {
+    "mybot": "./src/cli.ts"
+  },
+  "scripts": {
+    "mybot": "node src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node test/local.test.mjs && node test/skills.test.mjs && node test/policy.test.mjs && node test/teach.test.mjs && node test/wire.test.mjs && node test/wsproxy.test.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.116.0",
+    "@google/genai": "^2.16.0",
+    "@novnc/novnc": "^1.7.0",
+    "openai": "^7.4.0",
+    "playwright-core": "^1.62.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}

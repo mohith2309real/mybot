@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# MyBot launcher. Starts the console, opens a window, cleans up on exit.
+set -uo pipefail
+
+REPO="/Users/mohith/my projects/mybot"
+LOG="${HOME}/.mybot/app.log"
+mkdir -p "$(dirname "$LOG")"
+
+# GUI apps do not inherit a login shell's PATH, so a node installed by nvm or
+# Homebrew is invisible unless we go looking for it.
+find_node() {
+  for c in "$(command -v node 2>/dev/null)" /opt/homebrew/bin/node /usr/local/bin/node; do
+    [ -n "$c" ] && [ -x "$c" ] && { echo "$c"; return; }
+  done
+  for v in "$HOME"/.nvm/versions/node/*/bin/node; do
+    [ -x "$v" ] && { echo "$v"; return; }
+  done
+}
+
+NODE="$(find_node)"
+if [ -z "$NODE" ]; then
+  osascript -e 'display alert "MyBot needs Node.js" message "Install Node 22.6 or newer, then open MyBot again."'
+  exit 1
+fi
+
+# Reuse an already-running console rather than starting a second one.
+PORT_FILE="${HOME}/.mybot/app.port"
+if [ -f "$PORT_FILE" ] && curl -fsS "http://127.0.0.1:$(cat "$PORT_FILE")/api/bots" >/dev/null 2>&1; then
+  URL="http://127.0.0.1:$(cat "$PORT_FILE")"
+else
+  "$NODE" "$REPO/src/dashboard/launch.ts" >>"$LOG" 2>&1 &
+  SERVER_PID=$!
+  for _ in $(seq 1 60); do
+    [ -f "$PORT_FILE" ] && curl -fsS "http://127.0.0.1:$(cat "$PORT_FILE")/api/bots" >/dev/null 2>&1 && break
+    sleep 0.5
+  done
+  URL="http://127.0.0.1:$(cat "$PORT_FILE" 2>/dev/null || echo 7717)"
+fi
+
+open_window() {
+  for app in "Helium" "Google Chrome" "Brave Browser" "Microsoft Edge"; do
+    if [ -d "/Applications/$app.app" ]; then
+      open -na "/Applications/$app.app" --args --app="$1" \
+        --user-data-dir="${HOME}/.mybot/window" --no-first-run >/dev/null 2>&1 && return 0
+    fi
+  done
+  open "$1"   # Safari has no --app mode; a normal tab is the fallback
+}
+
+open_window "$URL"
+
+# Hold the process so the Dock icon stays alive while the console runs.
+if [ -n "${SERVER_PID:-}" ]; then
+  trap 'kill $SERVER_PID 2>/dev/null; rm -f "$PORT_FILE"' EXIT
+  wait $SERVER_PID
+fi

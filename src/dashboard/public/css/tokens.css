@@ -1,0 +1,233 @@
+/*
+ * MyBot console — design tokens.
+ *
+ * The room this runs in: one person, late, watching a remote browser click
+ * through a site on their behalf, waiting to notice the moment it stalls at a
+ * login wall. Dim room, one bright rectangle. So: dark by default.
+ *
+ * The palette is a broadcast gallery, not a SaaS dashboard. Neutrals are tinted
+ * warm graphite (hue 74) rather than the usual cold slate, and the one accent is
+ * a tally-light amber that means exactly one thing: this is live right now.
+ * Cool blue appears in a single place — the model's own narration — so the
+ * machine's voice reads differently from the machine's actions.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* neutrals — warm graphite */
+  --bg:          oklch(0.163 0.006 74);
+  --bg-rail:     oklch(0.135 0.006 74);
+  --panel:       oklch(0.198 0.006 74);
+  --panel-2:     oklch(0.235 0.007 74);
+  --panel-3:     oklch(0.272 0.008 74);
+  --line:        oklch(0.305 0.008 74);
+  --line-soft:   oklch(0.248 0.007 74);
+
+  --text:        oklch(0.930 0.008 78);
+  --text-2:      oklch(0.742 0.010 78);
+  --text-3:      oklch(0.575 0.010 78);
+  --text-4:      oklch(0.460 0.009 78);
+
+  /* the tally light: live, and nothing else */
+  --accent:      oklch(0.800 0.152 74);
+  --accent-dim:  oklch(0.640 0.120 74);
+  --accent-ink:  oklch(0.200 0.045 74);
+  --accent-wash: oklch(0.800 0.152 74 / 0.12);
+  --accent-edge: oklch(0.800 0.152 74 / 0.34);
+
+  /* semantic states */
+  --ok:          oklch(0.770 0.140 152);
+  --ok-wash:     oklch(0.770 0.140 152 / 0.13);
+  --warn:        oklch(0.755 0.175 45);
+  --warn-wash:   oklch(0.755 0.175 45 / 0.15);
+  --warn-edge:   oklch(0.755 0.175 45 / 0.42);
+  --bad:         oklch(0.690 0.190 20);
+  --bad-wash:    oklch(0.690 0.190 20 / 0.13);
+  --idle:        oklch(0.545 0.012 78);
+
+  /* the model's voice — the only cool hue in the app */
+  --voice:       oklch(0.780 0.075 232);
+  --voice-wash:  oklch(0.780 0.075 232 / 0.10);
+
+  --focus:       oklch(0.800 0.152 74);
+  --shadow-lift: 0 1px 2px oklch(0 0 0 / 0.5), 0 8px 24px -12px oklch(0 0 0 / 0.7);
+  --shadow-flat: 0 1px 0 oklch(0 0 0 / 0.28);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg:          oklch(0.962 0.005 78);
+  --bg-rail:     oklch(0.932 0.007 78);
+  --panel:       oklch(0.995 0.002 78);
+  --panel-2:     oklch(0.963 0.004 78);
+  --panel-3:     oklch(0.928 0.006 78);
+  --line:        oklch(0.862 0.008 78);
+  --line-soft:   oklch(0.906 0.006 78);
+
+  --text:        oklch(0.245 0.012 74);
+  --text-2:      oklch(0.455 0.012 74);
+  --text-3:      oklch(0.585 0.011 74);
+  --text-4:      oklch(0.665 0.010 74);
+
+  --accent:      oklch(0.618 0.146 62);
+  --accent-dim:  oklch(0.700 0.130 66);
+  --accent-ink:  oklch(0.995 0.010 74);
+  --accent-wash: oklch(0.618 0.146 62 / 0.11);
+  --accent-edge: oklch(0.618 0.146 62 / 0.32);
+
+  --ok:          oklch(0.510 0.128 152);
+  --ok-wash:     oklch(0.510 0.128 152 / 0.11);
+  --warn:        oklch(0.556 0.168 42);
+  --warn-wash:   oklch(0.556 0.168 42 / 0.11);
+  --warn-edge:   oklch(0.556 0.168 42 / 0.36);
+  --bad:         oklch(0.524 0.188 22);
+  --bad-wash:    oklch(0.524 0.188 22 / 0.10);
+  --idle:        oklch(0.640 0.012 78);
+
+  --voice:       oklch(0.470 0.085 240);
+  --voice-wash:  oklch(0.470 0.085 240 / 0.075);
+
+  --focus:       oklch(0.560 0.150 62);
+  --shadow-lift: 0 1px 2px oklch(0.3 0.02 74 / 0.10), 0 10px 26px -14px oklch(0.3 0.02 74 / 0.30);
+  --shadow-flat: 0 1px 0 oklch(0.3 0.02 74 / 0.05);
+}
+
+/* Follow the OS unless the viewer has stamped a preference on <html>. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+
+    --bg:          oklch(0.962 0.005 78);
+    --bg-rail:     oklch(0.932 0.007 78);
+    --panel:       oklch(0.995 0.002 78);
+    --panel-2:     oklch(0.963 0.004 78);
+    --panel-3:     oklch(0.928 0.006 78);
+    --line:        oklch(0.862 0.008 78);
+    --line-soft:   oklch(0.906 0.006 78);
+
+    --text:        oklch(0.245 0.012 74);
+    --text-2:      oklch(0.455 0.012 74);
+    --text-3:      oklch(0.585 0.011 74);
+    --text-4:      oklch(0.665 0.010 74);
+
+    --accent:      oklch(0.618 0.146 62);
+    --accent-dim:  oklch(0.700 0.130 66);
+    --accent-ink:  oklch(0.995 0.010 74);
+    --accent-wash: oklch(0.618 0.146 62 / 0.11);
+    --accent-edge: oklch(0.618 0.146 62 / 0.32);
+
+    --ok:          oklch(0.510 0.128 152);
+    --ok-wash:     oklch(0.510 0.128 152 / 0.11);
+    --warn:        oklch(0.556 0.168 42);
+    --warn-wash:   oklch(0.556 0.168 42 / 0.11);
+    --warn-edge:   oklch(0.556 0.168 42 / 0.36);
+    --bad:         oklch(0.524 0.188 22);
+    --bad-wash:    oklch(0.524 0.188 22 / 0.10);
+    --idle:        oklch(0.640 0.012 78);
+
+    --voice:       oklch(0.470 0.085 240);
+    --voice-wash:  oklch(0.470 0.085 240 / 0.075);
+
+    --focus:       oklch(0.560 0.150 62);
+    --shadow-lift: 0 1px 2px oklch(0.3 0.02 74 / 0.10), 0 10px 26px -14px oklch(0.3 0.02 74 / 0.30);
+    --shadow-flat: 0 1px 0 oklch(0.3 0.02 74 / 0.05);
+  }
+}
+
+:root {
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* fixed rem scale, ratio ~1.15 — an operator sits at a known distance */
+  --t-2xs: 0.6875rem;
+  --t-xs:  0.75rem;
+  --t-sm:  0.8125rem;
+  --t-md:  0.875rem;
+  --t-lg:  1rem;
+  --t-xl:  1.1875rem;
+  --t-2xl: 1.375rem;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 22px;
+  --sp-6: 30px;
+  --sp-7: 44px;
+
+  --r-xs: 3px;
+  --r-sm: 5px;
+  --r-md: 8px;
+  --r-lg: 12px;
+
+  --rail-w: 232px;
+  --computer-w: minmax(400px, 40%);
+  --topbar-h: 46px;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 110ms;
+  --dur: 180ms;
+  --dur-slow: 280ms;
+}
+
+/* ── reset ─────────────────────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--t-sm);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+}
+
+h1, h2, h3, p, dl, dd, figure, pre { margin: 0; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+
+/* Several components set `display`, which otherwise beats the UA rule for
+   [hidden]. The console toggles visibility constantly; this makes it reliable. */
+[hidden] { display: none !important; }
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+  font-variant-numeric: inherit;
+}
+
+button { background: none; border: 0; padding: 0; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+::selection { background: var(--accent-edge); color: var(--text); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
