@@ -37,16 +37,27 @@ pub struct ComputerSession {
     pub bot: String,
     state: Mutex<Option<(Computer, Desktop, Arc<Browser>)>>,
     on_line: Progress,
+    /// Never start a computer (tests): anything that needs one gets an error.
+    offline: bool,
 }
 
 impl ComputerSession {
     pub fn new(conversation: impl Into<String>, bot: impl Into<String>, on_line: Progress) -> Self {
-        Self { conversation: conversation.into(), bot: bot.into(), state: Mutex::new(None), on_line }
+        Self { conversation: conversation.into(), bot: bot.into(), state: Mutex::new(None), on_line, offline: false }
+    }
+
+    /// A session that refuses to start Docker, so tests never create
+    /// containers on the machine running them.
+    pub fn offline(bot: impl Into<String>) -> Self {
+        Self { offline: true, ..Self::new("offline", bot, Arc::new(|_| {})) }
     }
 
     /// Start the container and this bot's desktop if needed; reconnect the
     /// browser if its connection dropped.
     pub async fn ensure(&self) -> Result<(Computer, Desktop, Arc<Browser>), String> {
+        if self.offline {
+            return Err("No computer in this session.".into());
+        }
         let mut st = self.state.lock().await;
         if let Some((c, d, b)) = st.as_ref()
             && b.is_alive() {
@@ -514,7 +525,7 @@ mod tests {
         let store = Arc::new(LoginStore::at(dir.path().join("logins.enc")));
         let db = Db::in_memory().unwrap();
         let filler = Arc::new(LoginFiller::new(store.clone(), Approvals::new(db.clone(), store)));
-        let session = Arc::new(ComputerSession::new("test-no-docker", "scout", Arc::new(|_| {})));
+        let session = Arc::new(ComputerSession::offline("scout"));
         (dir, Toolbox { session, boundaries: Arc::new(Boundaries::default()), filler, policy, db: Some(db), progress: Arc::new(|_| {}) })
     }
 
@@ -553,10 +564,12 @@ mod tests {
         approved.approved = true;
         let r = tb.run("action_run", &json!({"name": "file_delete", "args": {"path": "/etc"}}), &approved).await;
         assert!(r.is_error && r.content.contains("refused"));
-        // If the instruction granted deletion, no pause.
+        // If the instruction granted deletion, no pause: it goes on to run (and,
+        // with no computer in tests, says so instead of starting Docker).
         let (_d2, tb2) = toolbox(policy::Context { grants: policy::grants_from_instruction("delete the old reports"), ..Default::default() });
         let r = tb2.run("action_run", &json!({"name": "file_delete", "args": {"path": "old.txt"}}), &ctx()).await;
         assert!(r.pause.is_none());
+        assert!(r.is_error && r.content.contains("No computer"), "{}", r.content);
     }
 
     #[test]
