@@ -1,69 +1,84 @@
-# Builds MyBot 2.0 for Linux, macOS and Windows and publishes a GitHub release.
+# Builds MyBot 2.0 for Windows, macOS and Linux, and publishes a GitHub release.
 #
-# Runs when a version tag is pushed (git tag v2.0.0 && git push origin v2.0.0),
-# or by hand from the Actions tab with the tag to (re)build.
+# - On a pull request that touches mybot2/: tests, then builds every platform
+#   as a check; the archives are attached to the run as artifacts.
+# - On main: the same, and if this version (mybot2/Cargo.toml) has no release
+#   yet, publishes v<version> with the archives. Bump the version to release.
+# - On a pushed v* tag, or run by hand with a tag: publishes that tag.
+#
+# A release is published only when the tests and every build pass.
 
 name: Release
 
 on:
   push:
+    branches: [main]
     tags: ["v*"]
+  pull_request:
+    paths: ["mybot2/**", ".github/workflows/release.yml"]
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to build and publish (it must already exist)"
+        description: "Tag to publish (created on this commit if it doesn't exist)"
         required: true
 
 permissions:
   contents: write
 
 env:
-  TAG: ${{ github.event.inputs.tag || github.ref_name }}
   CARGO_TERM_COLOR: always
 
 jobs:
-  release:
-    name: Create the release
+  plan:
+    name: Plan
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.plan.outputs.tag }}
+      publish: ${{ steps.plan.outputs.publish }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.TAG }}
-      - name: Create or update the release
+      - id: plan
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release edit "$TAG" --title "MyBot ${TAG#v}" --notes-file mybot2/RELEASE_NOTES.md
-          else
-            gh release create "$TAG" --verify-tag --title "MyBot ${TAG#v}" --notes-file mybot2/RELEASE_NOTES.md
-          fi
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' mybot2/Cargo.toml | head -1)
+          case "$EVENT" in
+            workflow_dispatch) tag="$INPUT_TAG"; publish=true ;;
+            push)
+              if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+                tag="$GITHUB_REF_NAME"; publish=true
+              else
+                tag="v$version"
+                if gh release view "$tag" >/dev/null 2>&1; then publish=false; else publish=true; fi
+              fi ;;
+            *) tag="v$version"; publish=false ;;
+          esac
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "Version $version → tag $tag, publish: $publish"
 
   test:
     name: Test (Linux)
     runs-on: ubuntu-22.04
-    defaults:
-      run:
-        working-directory: mybot2
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.TAG }}
-      # The vault test checks files written by MyBot 1.x, which runs on Node 22.
+      # The vault test reads files written by MyBot 1.x, which runs on Node 22.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: npm ci
-        working-directory: .
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: mybot2
       - run: cargo test --workspace --locked
+        working-directory: mybot2
 
   build:
     name: Build ${{ matrix.name }}
-    needs: release
+    needs: plan
     strategy:
       fail-fast: false
       matrix:
@@ -73,14 +88,14 @@ jobs:
           - { name: macos-x86_64, os: macos-latest, target: x86_64-apple-darwin }
           - { name: windows-x86_64, os: windows-latest, target: x86_64-pc-windows-msvc }
     runs-on: ${{ matrix.os }}
+    env:
+      TAG: ${{ needs.plan.outputs.tag }}
     defaults:
       run:
         shell: bash
         working-directory: mybot2
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.TAG }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -143,18 +158,44 @@ jobs:
 
       - name: Smoke test
         run: |
-          case "${{ runner.os }}" in
-            Windows) "target/${{ matrix.target }}/release/mybot2.exe" --version ;;
-            *) "target/${{ matrix.target }}/release/mybot2" --version ;;
-          esac
+          exe="target/${{ matrix.target }}/release/mybot2"
+          if [ "${{ runner.os }}" = "Windows" ]; then exe="$exe.exe"; fi
+          "$exe" --version
+          "$exe" sites github
 
-      - name: Upload to the release
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Checksum
         run: |
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            sha256sum "$ASSET" > "$ASSET.sha256"
+          if command -v sha256sum >/dev/null; then sha256sum "$ASSET" > "$ASSET.sha256"; else shasum -a 256 "$ASSET" > "$ASSET.sha256"; fi
+          cat "$ASSET.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mybot2-${{ matrix.name }}
+          path: |
+            mybot2/${{ env.ASSET }}
+            mybot2/${{ env.ASSET }}.sha256
+          if-no-files-found: error
+
+  publish:
+    name: Publish ${{ needs.plan.outputs.tag }}
+    needs: [plan, test, build]
+    if: needs.plan.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.plan.outputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create or update the release
+        run: |
+          ls -la dist
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "MyBot ${TAG#v}" --notes-file mybot2/RELEASE_NOTES.md
+            gh release upload "$TAG" dist/* --clobber
           else
-            shasum -a 256 "$ASSET" > "$ASSET.sha256"
+            gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "MyBot ${TAG#v}" --notes-file mybot2/RELEASE_NOTES.md
           fi
-          gh release upload "$TAG" "$ASSET" "$ASSET.sha256" --clobber
