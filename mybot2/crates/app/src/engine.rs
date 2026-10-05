@@ -22,6 +22,9 @@ use zeroize::Zeroizing;
 
 pub const CONVERSATION: &str = "default";
 
+/// Where a run's events go (the window's threads, or the terminal), per bot id.
+pub type EventSink = Arc<dyn Fn(&str, AgentEvent) + Send + Sync>;
+
 pub struct RunHandle {
     pub task_id: String,
     pub cancel: Cancel,
@@ -76,10 +79,6 @@ impl Engine {
     }
 
     // --- secrets ---------------------------------------------------------------
-
-    pub fn needs_unlock(&self) -> bool {
-        self.passphrase.lock().unwrap().is_none() && (self.keys.exists() || self.logins.exists())
-    }
 
     pub fn is_unlocked(&self) -> bool {
         self.passphrase.lock().unwrap().is_some()
@@ -202,7 +201,7 @@ impl Engine {
         bot: Bot,
         instruction: String,
         skill: Option<SkillRun>,
-        on_event: Arc<dyn Fn(&str, AgentEvent) + Send + Sync>,
+        on_event: EventSink,
     ) -> Result<Task, String> {
         if self.is_running(&bot.id) {
             return Err(format!("{} is already working on something. Stop it first, or wait.", bot.name));
@@ -232,7 +231,7 @@ impl Engine {
         instruction: &str,
         skill: Option<SkillRun>,
         cancel: Cancel,
-        on_event: Arc<dyn Fn(&str, AgentEvent) + Send + Sync>,
+        on_event: EventSink,
     ) -> Result<RunResult, String> {
         let provider = self.provider(&bot.provider).map_err(|e| e.to_string())?;
         let mut pol = policy::Context {
@@ -319,7 +318,7 @@ impl Engine {
     // --- routines -------------------------------------------------------------------------
 
     /// Fire scheduled routines that came due. Returns how many started.
-    pub fn tick_routines(self: &Arc<Self>, rt: &tokio::runtime::Handle, on_event: Arc<dyn Fn(&str, AgentEvent) + Send + Sync>) -> usize {
+    pub fn tick_routines(self: &Arc<Self>, rt: &tokio::runtime::Handle, on_event: EventSink) -> usize {
         let now = chrono::Local::now();
         let mut started = 0;
         for r in self.db.routines().unwrap_or_default().into_iter().filter(|r| r.enabled) {
@@ -338,7 +337,7 @@ impl Engine {
         rt: &tokio::runtime::Handle,
         r: &mybot_core::db::Routine,
         reason: &str,
-        on_event: Arc<dyn Fn(&str, AgentEvent) + Send + Sync>,
+        on_event: EventSink,
     ) -> Result<Task, String> {
         let bot = match &r.bot_id {
             Some(id) => self.db.bot(id).ok().flatten(),

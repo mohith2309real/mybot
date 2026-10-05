@@ -34,6 +34,9 @@ pub fn apply(ctx: &egui::Context) {
     style.spacing.item_spacing = Vec2::new(8.0, 7.0);
     style.spacing.button_padding = Vec2::new(12.0, 6.0);
     style.spacing.interact_size.y = 30.0;
+    // Text in the thread opts in with `.selectable(true)`; everywhere else a
+    // label must not swallow the click meant for the row it sits on.
+    style.interaction.selectable_labels = false;
 
     let v = &mut style.visuals;
     *v = egui::Visuals::dark();
@@ -98,6 +101,11 @@ pub fn avatar(ui: &mut egui::Ui, name: &str, size: f32, state: Option<Color32>) 
         p.circle_filled(center, size * 0.1, c);
     }
     resp
+}
+
+/// A one-line text field with room to breathe.
+pub fn input(s: &mut String) -> egui::TextEdit<'_> {
+    egui::TextEdit::singleline(s).margin(Margin::symmetric(8, 5))
 }
 
 pub fn accent_button(text: &str) -> egui::Button<'static> {

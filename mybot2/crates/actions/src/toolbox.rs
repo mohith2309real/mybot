@@ -48,11 +48,10 @@ impl ComputerSession {
     /// browser if its connection dropped.
     pub async fn ensure(&self) -> Result<(Computer, Desktop, Arc<Browser>), String> {
         let mut st = self.state.lock().await;
-        if let Some((c, d, b)) = st.as_ref() {
-            if b.is_alive() {
+        if let Some((c, d, b)) = st.as_ref()
+            && b.is_alive() {
                 return Ok((c.clone(), d.clone(), b.clone()));
             }
-        }
         let on_line = self.on_line.clone();
         let computer = container::ensure(&self.conversation, &move |l| on_line(l)).await.map_err(|e| e.to_string())?;
         let desktop = container::desktop(&computer, &self.bot).await.map_err(|e| e.to_string())?;
@@ -357,11 +356,10 @@ impl Toolbox {
             }
         };
         // Navigation-like actions can land on a boundary page.
-        if matches!(name, "page_back" | "page_forward" | "page_reload" | "tab_new" | "tab_switch" | "page_go_to_ref_link") {
-            if let Some(p) = self.page_pause(&b).await {
+        if matches!(name, "page_back" | "page_forward" | "page_reload" | "tab_new" | "tab_switch" | "page_go_to_ref_link")
+            && let Some(p) = self.page_pause(&b).await {
                 return ToolOutcome::paused(format!("{text}\n"), p);
             }
-        }
         ToolOutcome::ok(truncate(text))
     }
 

@@ -28,3 +28,6 @@ regex.workspace = true
 clap = { version = "4", features = ["derive"] }
 eframe = { version = "0.36", default-features = false, features = ["glow", "default_fonts", "x11", "wayland", "persistence"] }
 egui = "0.36"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

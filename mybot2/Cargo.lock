@@ -2331,6 +2331,7 @@ dependencies = [
  "clap",
  "eframe",
  "egui",
+ "libc",
  "mybot-actions",
  "mybot-catalog",
  "mybot-computer",

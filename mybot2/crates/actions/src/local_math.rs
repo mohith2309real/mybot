@@ -306,7 +306,7 @@ pub fn defs() -> Vec<Action> {
             |v| { let w = n(v, "whole")?; if w == 0.0 { return Err("whole is 0".into()); } Ok(format!("{:.2}%", n(v, "part")? / w * 100.0)) },
             (json!({"part": 1, "whole": 8}), "12.50%")),
         local("round_number", C, "Round to a number of decimal places", &[("value", "number", "Value", true), ("decimals", "integer", "Decimal places (default 0)", false)],
-            |v| { let d = n_or(v, "decimals", 0.0) as usize; Ok(format!("{:.*}", d, n(v, "value")?)) }, (json!({"value": 2.71828, "decimals": 2}), "2.72")),
+            |v| { let d = n_or(v, "decimals", 0.0) as usize; Ok(format!("{:.*}", d, n(v, "value")?)) }, (json!({"value": 1.23456, "decimals": 2}), "1.23")),
         local("number_format", C, "Format a number with thousands separators", &[("value", "number", "Value", true), ("decimals", "integer", "Decimal places (default 2)", false)],
             |v| Ok(group_thousands(n(v, "value")?, n_or(v, "decimals", 2.0) as usize)), (json!({"value": 1234567.891, "decimals": 2}), "1,234,567.89")),
         local("currency_format", C, "Format an amount as currency", &[("amount", "number", "Amount", true), ("currency", "string", "Code like USD, EUR, GBP, INR, JPY", true)],
@@ -372,7 +372,7 @@ pub fn defs() -> Vec<Action> {
             |v| { let (a, b) = (n(v, "a")?.abs() as u64, n(v, "b")?.abs() as u64); let g = gcd(a, b); Ok(format!("gcd {g}\nlcm {}", if g == 0 { 0 } else { a / g * b })) },
             (json!({"a": 12, "b": 18}), "lcm 36")),
         local("prime_check", C, "Is a number prime (and its smallest factor if not)", &[("n", "integer", "Number", true)],
-            |v| { let x = n(v, "n")? as u64; if x < 2 { return Ok("not prime".into()); } let mut d = 2; while d * d <= x { if x % d == 0 { return Ok(format!("not prime (divisible by {d})")); } d += 1; } Ok("prime".into()) },
+            |v| { let x = n(v, "n")? as u64; if x < 2 { return Ok("not prime".into()); } let mut d = 2; while d * d <= x { if x.is_multiple_of(d) { return Ok(format!("not prime (divisible by {d})")); } d += 1; } Ok("prime".into()) },
             (json!({"n": 97}), "prime")),
         local("average", C, "Average (mean) of numbers", &[("numbers", "array", "Numbers", true)],
             |v| { let x = numbers(v, "numbers")?; if x.is_empty() { return Err("no numbers".into()); } Ok(num(x.iter().sum::<f64>() / x.len() as f64)) },
@@ -389,7 +389,7 @@ pub fn defs() -> Vec<Action> {
                 fn words(n: u64) -> String {
                     const O: [&str; 20] = ["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"];
                     const T: [&str; 10] = ["","","twenty","thirty","forty","fifty","sixty","seventy","eighty","ninety"];
-                    match n { 0..=19 => O[n as usize].into(), 20..=99 => format!("{}{}", T[(n / 10) as usize], if n % 10 > 0 { format!("-{}", O[(n % 10) as usize]) } else { String::new() }), 100..=999 => format!("{} hundred{}", O[(n / 100) as usize], if n % 100 > 0 { format!(" {}", words(n % 100)) } else { String::new() }), _ => { for (d, name) in [(1_000_000_000_000u64, "trillion"), (1_000_000_000, "billion"), (1_000_000, "million"), (1000, "thousand")] { if n >= d { return format!("{} {name}{}", words(n / d), if n % d > 0 { format!(" {}", words(n % d)) } else { String::new() }); } } unreachable!() } }
+                    match n { 0..=19 => O[n as usize].into(), 20..=99 => format!("{}{}", T[(n / 10) as usize], if !n.is_multiple_of(10) { format!("-{}", O[(n % 10) as usize]) } else { String::new() }), 100..=999 => format!("{} hundred{}", O[(n / 100) as usize], if !n.is_multiple_of(100) { format!(" {}", words(n % 100)) } else { String::new() }), _ => { for (d, name) in [(1_000_000_000_000u64, "trillion"), (1_000_000_000, "billion"), (1_000_000, "million"), (1000, "thousand")] { if n >= d { return format!("{} {name}{}", words(n / d), if !n.is_multiple_of(d) { format!(" {}", words(n % d)) } else { String::new() }); } } unreachable!() } }
                 }
                 let x = n(v, "n")?; Ok(format!("{}{}", if x < 0.0 { "minus " } else { "" }, words(x.abs() as u64)))
             },

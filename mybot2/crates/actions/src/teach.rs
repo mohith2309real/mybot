@@ -260,11 +260,10 @@ impl RecordedAction {
             "input" | "select" => format!("{} {} = {}", self.kind, what.unwrap_or_default(), self.value.clone().unwrap_or_default()),
             _ => format!("{} {}", self.kind, what.unwrap_or_default()),
         };
-        if let Some(d) = &self.detail {
-            if self.kind != "navigate" || d != "load" {
+        if let Some(d) = &self.detail
+            && (self.kind != "navigate" || d != "load") {
                 s.push_str(&format!(" ({d})"));
             }
-        }
         s.trim().to_string()
     }
 }
@@ -392,11 +391,10 @@ impl Recorder {
                     Ok(e) if e.method == "Runtime.bindingCalled" && e.params["name"] == BINDING => {
                         let Some(payload) = e.params["payload"].as_str() else { continue };
                         let Ok(raw) = serde_json::from_str::<Value>(payload) else { continue };
-                        if let Some(a) = sanitize(&raw) {
-                            if seen.insert(a.id.clone()) {
+                        if let Some(a) = sanitize(&raw)
+                            && seen.insert(a.id.clone()) {
                                 sink.lock().unwrap().push(a);
                             }
-                        }
                     }
                     Ok(_) => {}
                     Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}

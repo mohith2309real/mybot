@@ -70,7 +70,7 @@ pub fn defs() -> Vec<Action> {
         local("password_strength", C, "Estimate a password's strength without storing or sending it", &[("password", "string", "Password to rate", true)],
             |v| {
                 let p = s(v, "password")?;
-                let mut pool = 0u32; if p.chars().any(|c| c.is_ascii_lowercase()) { pool += 26; } if p.chars().any(|c| c.is_ascii_uppercase()) { pool += 26; } if p.chars().any(|c| c.is_ascii_digit()) { pool += 10; } if p.chars().any(|c| !c.is_ascii_alphanumeric()) { pool += 32; }
+                let pool: u32 = [(p.chars().any(|c| c.is_ascii_lowercase()), 26), (p.chars().any(|c| c.is_ascii_uppercase()), 26), (p.chars().any(|c| c.is_ascii_digit()), 10), (p.chars().any(|c| !c.is_ascii_alphanumeric()), 32)].iter().filter(|x| x.0).map(|x| x.1).sum();
                 let bits = p.chars().count() as f64 * (pool.max(1) as f64).log2();
                 let common = ["password", "123456", "qwerty", "letmein", "admin", "welcome"].iter().any(|w| p.to_lowercase().contains(w));
                 let rating = if common { "weak (contains a very common password)" } else if bits < 40.0 { "weak" } else if bits < 60.0 { "fair" } else if bits < 80.0 { "strong" } else { "very strong" };
@@ -78,7 +78,7 @@ pub fn defs() -> Vec<Action> {
             },
             (json!({"password": "correct-Horse-battery-9"}), "very strong")),
         local("luhn_check", C, "Check a number's Luhn checksum (IDs, IMEIs)", &[("number", "string", "Digits", true)],
-            |v| { let d: Vec<u32> = s(v, "number")?.chars().filter(|c| c.is_ascii_digit()).filter_map(|c| c.to_digit(10)).collect(); if d.len() < 2 { return Err("too short".into()); } let sum: u32 = d.iter().rev().enumerate().map(|(i, &x)| if i % 2 == 1 { let y = x * 2; if y > 9 { y - 9 } else { y } } else { x }).sum(); Ok(if sum % 10 == 0 { "valid checksum".into() } else { "invalid checksum".into() }) },
+            |v| { let d: Vec<u32> = s(v, "number")?.chars().filter(|c| c.is_ascii_digit()).filter_map(|c| c.to_digit(10)).collect(); if d.len() < 2 { return Err("too short".into()); } let sum: u32 = d.iter().rev().enumerate().map(|(i, &x)| if i % 2 == 1 { let y = x * 2; if y > 9 { y - 9 } else { y } } else { x }).sum(); Ok(if sum.is_multiple_of(10) { "valid checksum".into() } else { "invalid checksum".into() }) },
             (json!({"number": "79927398713"}), "valid checksum")),
     ]
 }

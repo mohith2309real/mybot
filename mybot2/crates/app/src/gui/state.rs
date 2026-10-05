@@ -51,8 +51,12 @@ impl Threads {
                 }
             };
             match e {
-                AgentEvent::Started { .. } => {
+                AgentEvent::Started { instruction } => {
                     t.working = true;
+                    // The composer echoes what was typed; routine runs arrive here first.
+                    if !matches!(t.items.last(), Some(Item::You(y)) if *y == instruction) {
+                        t.items.push(Item::You(instruction));
+                    }
                 }
                 AgentEvent::TextDelta(s) => t.live_text.push_str(&s),
                 AgentEvent::ThinkingDelta(s) => t.live_thinking.push_str(&s),
@@ -84,6 +88,7 @@ impl Threads {
                 }
                 AgentEvent::Resumed { skipped } => {
                     t.waiting = None;
+                    settle_open_step(&mut t.items, skipped);
                     t.items.push(Item::Note(if skipped { "You skipped that step. The bot carries on without it.".into() } else { "Handed back to the bot.".into() }));
                 }
                 AgentEvent::Finished { status, summary } => {
@@ -115,6 +120,7 @@ impl Threads {
                     "thinking" => items.push(Item::Thinking(e.text)),
                     "tool_call" => {
                         let (name, input) = e.text.split_once(' ').map(|(a, b)| (a.to_string(), b.to_string())).unwrap_or((e.text.clone(), String::new()));
+                        let input = serde_json::from_str::<Value>(&input).map(|v| compact(&v)).unwrap_or(input);
                         items.push(Item::Step { name, input, result: None });
                     }
                     "tool_result" | "tool_error" => {
@@ -123,8 +129,12 @@ impl Threads {
                             *result = Some((content, e.kind == "tool_error"));
                         }
                     }
-                    "pause" => items.push(Item::Note(format!("Stopped for you: {}", e.text))),
-                    "resume" => items.push(Item::Note(e.text)),
+                    "pause" => items.push(Item::Note(format!("Stopped for you: {}", pause_text(&e.text)))),
+                    "resume" => {
+                        let skipped = e.text.contains("skipped");
+                        settle_open_step(&mut items, skipped);
+                        items.push(Item::Note(if skipped { "You skipped that step.".into() } else { "Handed back to the bot.".into() }));
+                    }
                     "done" => {
                         if !matches!(items.last(), Some(Item::Bot(b)) if b.trim() == e.text.trim()) {
                             items.push(Item::Done(e.text));
@@ -140,6 +150,26 @@ impl Threads {
             t.items = items;
             t.loaded = true;
         });
+    }
+}
+
+/// The step that paused for the human is finished once they answer.
+fn settle_open_step(items: &mut [Item], skipped: bool) {
+    if let Some(Item::Step { result, .. }) = items.iter_mut().rev().find(|i| matches!(i, Item::Step { result: None, .. })) {
+        *result = Some((if skipped { "Skipped by you.".into() } else { "Done by you.".into() }, false));
+    }
+}
+
+/// A stored pause line, `kind: reason — url`, as a person would say it.
+fn pause_text(raw: &str) -> String {
+    let body = match raw.split_once(": ") {
+        Some((kind, rest)) if !kind.contains(' ') => rest,
+        _ => raw,
+    };
+    match body.rsplit_once(" — ") {
+        Some((reason, "")) => reason.to_string(),
+        Some((reason, url)) => format!("{reason} ({url})"),
+        None => body.to_string(),
     }
 }
 
@@ -194,10 +224,29 @@ mod tests {
         th.apply("b", AgentEvent::Assistant("All done.".into()));
         th.apply("b", AgentEvent::Finished { status: RunStatus::Done, summary: "All done.".into() });
         let items = th.with("b", |t| t.items.clone());
-        assert_eq!(items[0], Item::Thinking("plan".into()));
-        assert_eq!(items[1], Item::Step { name: "page_navigate".into(), input: "url: https://a.example".into(), result: Some(("Opened".into(), false)) });
-        assert!(matches!(items[2], Item::Paused { .. }));
+        assert_eq!(items[0], Item::You("x".into()), "a run started elsewhere shows its instruction");
+        assert_eq!(items[1], Item::Thinking("plan".into()));
+        assert_eq!(items[2], Item::Step { name: "page_navigate".into(), input: "url: https://a.example".into(), result: Some(("Opened".into(), false)) });
+        assert!(matches!(items[3], Item::Paused { .. }));
         assert_eq!(items.last(), Some(&Item::Bot("All done.".into())), "no duplicate summary");
         assert!(!th.with("b", |t| t.working || t.waiting.is_some()));
+    }
+
+    #[test]
+    fn handing_back_settles_the_paused_step() {
+        let th = Threads::default();
+        th.with("b", |t| t.task_id = Some("t1".into()));
+        th.apply("b", AgentEvent::ToolCall { name: "request_human".into(), input: json!({"reason": "code"}) });
+        th.apply("b", AgentEvent::Paused(Pause::new("always_confirm", "code", "", false)));
+        th.apply("b", AgentEvent::Resumed { skipped: true });
+        let items = th.with("b", |t| t.items.clone());
+        assert!(matches!(&items[0], Item::Step { result: Some((r, false)), .. } if r == "Skipped by you."));
+    }
+
+    #[test]
+    fn stored_pause_lines_read_naturally() {
+        assert_eq!(pause_text("always_confirm: Type the code — "), "Type the code");
+        assert_eq!(pause_text("captcha: Solve it — https://a.example"), "Solve it (https://a.example)");
+        assert_eq!(pause_text("no kind here"), "no kind here");
     }
 }
