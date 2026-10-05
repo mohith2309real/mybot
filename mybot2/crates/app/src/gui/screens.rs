@@ -182,7 +182,7 @@ impl App {
             ui.label(muted("No skills match."));
         }
         let cols = ((ui.available_width() + 12.0) / 312.0).floor().max(1.0) as usize;
-        let w = (ui.available_width() - 12.0 * (cols as f32 - 1.0)) / cols as f32;
+        let w = ((ui.available_width() - 12.0 * (cols as f32 - 1.0)) / cols as f32).max(160.0);
         for row in list.chunks(cols) {
             ui.horizontal_top(|ui| {
                 for s in row {
@@ -284,7 +284,7 @@ impl App {
             ui.label(RichText::new("Add a skill from anywhere").strong());
             ui.label(small("Agent Skills format (SKILL.md) — the same skills Claude uses. A folder, a .zip, or a GitHub folder link. You can also drop one on this window."));
             ui.horizontal(|ui| {
-                ui.add(input(&mut self.screens.import_src).hint_text("~/skills/pdf  ·  skill.zip  ·  https://github.com/owner/repo/tree/main/skills/name").desired_width(ui.available_width() - 110.0));
+                ui.add(input(&mut self.screens.import_src).hint_text("~/skills/pdf  ·  skill.zip  ·  https://github.com/owner/repo/tree/main/skills/name").desired_width((ui.available_width() - 110.0).max(160.0)));
                 let busy = self.screens.import_job.is_some();
                 if ui.add_enabled(!busy && !self.screens.import_src.trim().is_empty(), accent_button(if busy { "Importing…" } else { "Import" })).clicked() {
                     let src = self.screens.import_src.trim().to_string();

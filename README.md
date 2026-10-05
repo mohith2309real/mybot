@@ -7,6 +7,13 @@ teach-a-task recording; and routines.
 
 Runs entirely on your own model API keys. No xAI, no Grok models, no Cursor.
 
+> **MyBot 2.0** is a native desktop app written in Rust (no web view): each
+> teammate has its own computer, sign-ins happen with your approval and without
+> the model ever seeing a password, plus 249 actions, 245 built-in skills,
+> 300 known sites, Agent Skills (`SKILL.md`) import/export, teach-a-task and
+> routines. See [mybot2/README.md](mybot2/README.md). It shares `~/.mybot`
+> (keys and saved logins) with this version.
+
 ---
 
 ## Architecture note: one computer per *account*, not per bot

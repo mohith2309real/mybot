@@ -79,9 +79,18 @@ pub enum Cmd {
         cmd: RoutinesCmd,
     },
     /// Search the 200+ actions teammates can take.
-    Actions { query: Vec<String> },
+    Actions {
+        query: Vec<String>,
+        /// Print JSON (name, category, kind, needs_ok, params, description).
+        #[arg(long)]
+        json: bool,
+    },
     /// Search the 300 known sites and their sign-in pages.
-    Sites { query: Vec<String> },
+    Sites {
+        query: Vec<String>,
+        #[arg(long)]
+        json: bool,
+    },
     /// The models a provider offers right now.
     Models { provider: String },
     /// The agent computers (Docker).
@@ -152,6 +161,9 @@ pub enum SkillsCmd {
         query: Option<String>,
         #[arg(long)]
         category: Option<String>,
+        /// Print the built-in catalog as JSON.
+        #[arg(long)]
+        json: bool,
     },
     Show { name: String },
     /// Import an Agent Skills folder, .zip, or GitHub folder URL. Starts switched off.
@@ -337,17 +349,29 @@ pub fn main(cli: Cli) -> anyhow::Result<()> {
             rt.block_on(teach_in_terminal(engine, bot, label.join(" ")))?;
         }
         Cmd::Routines { cmd } => routines(&engine, &rt, cmd)?,
-        Cmd::Actions { query } => {
+        Cmd::Actions { query, json } => {
             let q = query.join(" ");
-            let list = if q.is_empty() { mybot_actions::all().iter().collect() } else { mybot_actions::search(&q, None, 40) };
+            let list: Vec<_> = if q.is_empty() { mybot_actions::all().iter().collect() } else { mybot_actions::search(&q, None, 40) };
+            if json {
+                let out: Vec<_> = list
+                    .iter()
+                    .map(|a| serde_json::json!({"name": a.name, "category": a.category, "kind": a.kind().label(), "needs_ok": a.capability.map(|c| c.label()), "params": a.params, "description": a.description}))
+                    .collect();
+                println!("{}", serde_json::to_string_pretty(&out)?);
+                return Ok(());
+            }
             for a in &list {
                 println!("{:<12} {}", a.category, a.signature());
             }
             println!("\n{} of {} actions", list.len(), mybot_actions::all().len());
         }
-        Cmd::Sites { query } => {
+        Cmd::Sites { query, json } => {
             let q = query.join(" ");
-            let list = if q.is_empty() { mybot_catalog::sites().iter().collect() } else { mybot_catalog::search_sites(&q, 40) };
+            let list: Vec<_> = if q.is_empty() { mybot_catalog::sites().iter().collect() } else { mybot_catalog::search_sites(&q, 40) };
+            if json {
+                println!("{}", serde_json::to_string_pretty(&list)?);
+                return Ok(());
+            }
             for s in &list {
                 println!("{:<14} {:<26} {}{}", s.category, s.name, s.login, if s.two_step { "  (2-step)" } else { "" });
             }
@@ -596,9 +620,14 @@ fn skills(engine: &Engine, rt: &tokio::runtime::Runtime, cmd: SkillsCmd) -> anyh
         }
     };
     match cmd {
-        SkillsCmd::List { query, category } => {
+        SkillsCmd::List { query, category, json } => {
             let q = query.unwrap_or_default();
-            let list = if q.is_empty() { mybot_catalog::skills().iter().collect() } else { mybot_catalog::search_skills(&q, 300) };
+            let list: Vec<_> = if q.is_empty() { mybot_catalog::skills().iter().collect() } else { mybot_catalog::search_skills(&q, 300) };
+            if json {
+                let list: Vec<_> = list.into_iter().filter(|s| category.as_ref().is_none_or(|c| &s.category == c)).collect();
+                println!("{}", serde_json::to_string_pretty(&list)?);
+                return Ok(());
+            }
             let mut n = 0;
             for s in list.into_iter().filter(|s| category.as_ref().is_none_or(|c| &s.category == c)) {
                 println!("{:<14} {:<34} {}", s.category, s.name, s.description);

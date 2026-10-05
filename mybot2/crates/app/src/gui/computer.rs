@@ -72,9 +72,11 @@ impl App {
         let ctx = ui.ctx().clone();
         self.computer_sync(&ctx, &bot);
 
+        // Keep at least ~360 px for the conversation beside the 256 px roster.
+        let room = (ctx.content_rect().width() - 256.0 - 360.0).max(320.0);
         egui::Panel::right("computer")
-            .default_size(560.0)
-            .size_range(380.0..=1100.0)
+            .default_size(560.0_f32.min(room))
+            .size_range(320.0_f32.min(room)..=room.min(1100.0))
             .resizable(true)
             .frame(egui::Frame::NONE.fill(RAIL).inner_margin(Margin::same(14)).stroke(Stroke::new(1.0, LINE)))
             .show(ui, |ui| {
@@ -182,7 +184,9 @@ impl App {
     fn screen(&mut self, ui: &mut egui::Ui, bot: &Bot) {
         let ctx = ui.ctx().clone();
         let Some(view) = self.computer.view.clone() else {
-            let w = ui.available_width();
+            // The frame's 1 px stroke sits outside its content: leave room for it,
+            // or a resizable panel grows by 2 px every frame.
+            let w = ui.available_width() - 2.0;
             egui::Frame::NONE.fill(Color32::from_rgb(10, 10, 12)).corner_radius(12).stroke(Stroke::new(1.0, LINE)).show(ui, |ui| {
                 ui.set_min_size(Vec2::new(w, w * 0.6));
                 ui.vertical_centered(|ui| {
@@ -372,7 +376,7 @@ impl App {
                 ui.label(small(format!("Do it once yourself in {}'s browser; it becomes a skill the bot can repeat.", bot.name)));
                 let live = p.view.as_ref().is_some_and(|v| v.is_connected());
                 ui.horizontal(|ui| {
-                    ui.add(input(&mut p.teach_label).hint_text("What are you showing? e.g. download my invoice").desired_width(ui.available_width() - 130.0));
+                    ui.add(input(&mut p.teach_label).hint_text("What are you showing? e.g. download my invoice").desired_width((ui.available_width() - 130.0).max(120.0)));
                     let ok = live && !p.teach_label.trim().is_empty() && p.teach_start.is_none();
                     if ui.add_enabled(ok, accent_button("Record")).on_disabled_hover_text(if live { "Name the task first" } else { "Start the computer first" }).clicked() {
                         let session = self.engine.session(&bot.name);

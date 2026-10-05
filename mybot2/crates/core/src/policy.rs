@@ -326,12 +326,19 @@ pub fn render_prompt(ctx: &Context) -> String {
         lines.push(format!("- The human's instruction authorises you to: {}.", granted.join("; ")));
     }
     match ctx.mode {
-        Mode::Bypass => lines.push("- Other consequential actions may proceed without asking.".into()),
-        _ => lines.push(
-            "- Anything else consequential (sending, publishing, buying, moving money, deleting, changing access, \
-             accepting terms) — say what you would do and call request_human instead of doing it."
-                .into(),
-        ),
+        Mode::Bypass => lines.push("- Bypass mode: act without asking, for routine and consequential steps alike.".into()),
+        mode => {
+            lines.push(if mode == Mode::Auto {
+                "- Auto mode: do the routine work without asking.".into()
+            } else {
+                "- Ask mode: if you are unsure a step is wanted, check with the human (request_human) before doing it.".into()
+            });
+            lines.push(
+                "- Anything else consequential (sending, publishing, buying, moving money, deleting, changing access, \
+                 accepting terms) — say what you would do and call request_human instead of doing it."
+                    .into(),
+            );
+        }
     }
     if !ctx.always_confirm.is_empty() {
         let labels: Vec<&str> = ctx.always_confirm.iter().map(|c| c.label()).collect();
@@ -346,6 +353,16 @@ pub fn render_prompt(ctx: &Context) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn modes_read_differently() {
+        let ctx = |mode| Context { mode, grants: Default::default(), always_confirm: Default::default() };
+        let (ask, auto, bypass) = (render_prompt(&ctx(Mode::Ask)), render_prompt(&ctx(Mode::Auto)), render_prompt(&ctx(Mode::Bypass)));
+        assert!(ask.contains("Ask mode") && ask.contains("request_human instead"));
+        assert!(auto.contains("routine work without asking") && auto.contains("request_human instead"));
+        assert!(bypass.contains("Bypass mode") && !bypass.contains("request_human instead"));
+        assert!(bypass.contains("Never run in any mode"));
+    }
+
     use super::*;
 
     #[test]

@@ -76,9 +76,9 @@ impl ChatState {
 }
 
 const MODES: [(&str, &str, &str); 3] = [
-    ("ask", "Ask first", "Asks before sending, buying, posting, deleting or changing settings — unless your request already said to."),
-    ("auto", "Auto", "Does what your request clearly covers; still asks for payments, deletion and permission changes."),
-    ("bypass", "Bypass", "Never asks about ordinary actions. CAPTCHAs, 2-step codes, card entry and destructive commands still stop for you."),
+    ("ask", "Ask first", "Stops before anything consequential your request didn't ask for (sending, posting, buying, paying, deleting, changing access, accepting terms), and checks in when unsure."),
+    ("auto", "Auto", "Gets on with routine steps without checking in. Consequential steps your request didn't ask for still wait for you."),
+    ("bypass", "Bypass", "Doesn't stop for consequential steps either. CAPTCHAs, 2-step codes, card fields, checkout and destructive commands still stop for you."),
 ];
 
 const EFFORTS: [&str; 5] = ["low", "medium", "high", "xhigh", "max"];
@@ -133,24 +133,33 @@ impl App {
     }
 
     fn chat_header(&mut self, ui: &mut egui::Ui, bot: &Bot) {
+        let width = ui.available_width();
+        let narrow = width < 540.0;
         ui.horizontal(|ui| {
             avatar(ui, &bot.name, 36.0, None);
             ui.vertical(|ui| {
                 ui.spacing_mut().item_spacing.y = 0.0;
                 ui.label(RichText::new(&bot.name).size(16.5).strong());
-                let mode = MODES.iter().find(|m| m.0 == bot.mode).map(|m| m.1).unwrap_or("Ask first");
-                ui.label(small(format!("{} · {} · {mode}", bot.model, bot.effort)));
+                if !narrow {
+                    let mode = MODES.iter().find(|m| m.0 == bot.mode).map(|m| m.1).unwrap_or("Ask first");
+                    ui.label(small(format!("{} · {} · {mode}", bot.model, bot.effort)));
+                }
             });
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if ui.add(ghost_button("Edit")).clicked() {
                     self.chat.bot_form = Some(BotForm::from_bot(bot));
                 }
-                let label = if self.show_computer { "Hide computer" } else { "🖥  Agent computer" };
+                let label = match (self.show_computer, narrow) {
+                    (true, false) => "Hide computer",
+                    (true, true) => "Hide",
+                    (false, false) => "🖥  Agent computer",
+                    (false, true) => "🖥",
+                };
                 let b = if self.show_computer { ghost_button(label) } else { accent_button(label) };
-                if ui.add(b).clicked() {
+                if ui.add(b).on_hover_text("The bot's own computer: watch it, or take over").clicked() {
                     self.show_computer = !self.show_computer;
                 }
-                if self.engine.is_running(&bot.id) {
+                if self.engine.is_running(&bot.id) && width > 700.0 {
                     ui.add(egui::Spinner::new().size(14.0).color(ACCENT));
                     ui.label(RichText::new("Working").color(ACCENT));
                 }
@@ -164,8 +173,8 @@ impl App {
         egui::ScrollArea::vertical().stick_to_bottom(true).auto_shrink([false, false]).show(ui, |ui| {
             ui.add_space(16.0);
             let w = ui.available_width();
-            let col = (w - 48.0).min(820.0);
-            let pad = ((w - col) / 2.0).max(24.0);
+            let col = (w - 48.0).clamp(160.0, 820.0);
+            let pad = ((w - col) / 2.0).max(8.0);
             ui.horizontal(|ui| {
                 ui.add_space(pad);
                 ui.vertical(|ui| {
@@ -248,7 +257,10 @@ impl App {
                 let font = egui::FontId::proportional(13.0);
                 job.append(&format!("{icon}  "), 0.0, egui::TextFormat::simple(font.clone(), color));
                 job.append(&format!("{}  ", verb(name)), 0.0, egui::TextFormat::simple(font.clone(), if result.is_some() { TEXT2 } else { MUTED }));
-                job.append(input, 0.0, egui::TextFormat::simple(font, MUTED));
+                // One line, cut short: a long URL must not widen the column.
+                let fit = ((ui.available_width() - 60.0 - 7.0 * verb(name).len() as f32) / 6.6).max(12.0) as usize;
+                let shown = if input.chars().count() > fit { format!("{}…", input.chars().take(fit.saturating_sub(1)).collect::<String>()) } else { input.clone() };
+                job.append(&shown, 0.0, egui::TextFormat::simple(font, MUTED));
                 egui::CollapsingHeader::new(job).id_salt(("step", i)).default_open(false).icon(|_, _, _| {}).show(ui, |ui| {
                     egui::Frame::NONE.fill(PANEL).corner_radius(8).inner_margin(Margin::same(10)).show(ui, |ui| {
                         ui.label(small(format!("tool: {name}")));
@@ -311,34 +323,30 @@ impl App {
         let task = self.engine.runs.lock().unwrap().get(&bot.id).map(|r| r.task_id.clone()).unwrap_or(thread_task);
         egui::Frame::NONE.fill(ACCENT_WASH).stroke(Stroke::new(1.0, ACCENT)).corner_radius(12).inner_margin(Margin::same(12)).show(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.horizontal(|ui| {
-                ui.vertical(|ui| {
-                    ui.set_max_width(ui.available_width() - 300.0);
-                    ui.label(RichText::new(if pause.confirm { format!("{} needs your OK", bot.name) } else { format!("{} needs you", bot.name) }).color(ACCENT).strong());
-                    ui.add(egui::Label::new(RichText::new(&pause.reason).color(TEXT)).wrap());
-                });
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if pause.confirm {
-                        if ui.add(danger_button("Decline")).clicked() {
-                            self.engine.handoffs.resume(&task, true);
-                        }
-                        if ui.add(accent_button("Approve")).clicked() {
-                            self.engine.handoffs.resume(&task, false);
-                        }
-                    } else {
-                        if ui.add(ghost_button("Skip")).on_hover_text("Carry on without this step").clicked() {
-                            self.engine.handoffs.resume(&task, true);
-                        }
-                        if ui.add(accent_button("I'm done")).on_hover_text("Hand control back to the bot").clicked() {
-                            self.computer.takeover = false;
-                            self.engine.handoffs.resume(&task, false);
-                        }
-                        if ui.add(ghost_button("Take over")).clicked() {
-                            self.show_computer = true;
-                            self.computer.takeover = true;
-                        }
+            ui.label(RichText::new(if pause.confirm { format!("{} needs your OK", bot.name) } else { format!("{} needs you", bot.name) }).color(ACCENT).strong());
+            ui.add(egui::Label::new(RichText::new(&pause.reason).color(TEXT)).wrap());
+            ui.add_space(4.0);
+            ui.horizontal_wrapped(|ui| {
+                if pause.confirm {
+                    if ui.add(accent_button("Approve")).clicked() {
+                        self.engine.handoffs.resume(&task, false);
                     }
-                });
+                    if ui.add(danger_button("Decline")).clicked() {
+                        self.engine.handoffs.resume(&task, true);
+                    }
+                } else {
+                    if ui.add(ghost_button("Take over")).on_hover_text("Use the bot's browser yourself in the agent computer").clicked() {
+                        self.show_computer = true;
+                        self.computer.takeover = true;
+                    }
+                    if ui.add(accent_button("I'm done")).on_hover_text("Hand control back to the bot").clicked() {
+                        self.computer.takeover = false;
+                        self.engine.handoffs.resume(&task, false);
+                    }
+                    if ui.add(ghost_button("Skip")).on_hover_text("Carry on without this step").clicked() {
+                        self.engine.handoffs.resume(&task, true);
+                    }
+                }
             });
         });
         ui.add_space(8.0);
@@ -371,7 +379,9 @@ impl App {
                         self.chat.skill_picker = !self.chat.skill_picker;
                     }
                 }
-                ui.label(small("Enter to send · Shift+Enter for a new line"));
+                if ui.available_width() > 360.0 {
+                    ui.label(small("Enter to send · Shift+Enter for a new line"));
+                }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     if running {
                         if ui.add(danger_button("■  Stop")).clicked() {
@@ -436,7 +446,7 @@ impl App {
         card().show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.horizontal(|ui| {
-                ui.add(input(&mut self.chat.skill_query).hint_text("Search 245 built-in skills and yours…").desired_width(ui.available_width() - 70.0));
+                ui.add(input(&mut self.chat.skill_query).hint_text("Search 245 built-in skills and yours…").desired_width((ui.available_width() - 70.0).max(120.0)));
                 if ui.add(ghost_button("Close")).clicked() {
                     self.chat.skill_picker = false;
                 }
