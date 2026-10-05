@@ -467,6 +467,32 @@ impl Browser {
         Ok(format!("closed tab {index}"))
     }
 
+    /// Everything the browser reports (binding calls, navigations, …).
+    pub fn events(&self) -> tokio::sync::broadcast::Receiver<crate::cdp::CdpEvent> {
+        self.cdp.events()
+    }
+
+    /// Run `source` in the current document and every later one on this tab,
+    /// with `window[binding](string)` reporting back as
+    /// `Runtime.bindingCalled`. Returns the script id for [`Self::disarm`].
+    pub async fn arm(&self, binding: &str, source: &str) -> Result<String, String> {
+        self.page_call("Runtime.addBinding", json!({"name": binding})).await?;
+        let r = self.page_call("Page.addScriptToEvaluateOnNewDocument", json!({"source": source})).await?;
+        let id = r["identifier"].as_str().unwrap_or_default().to_string();
+        // The document already open needs its own install.
+        let _ = self.eval(source).await;
+        Ok(id)
+    }
+
+    /// Undo [`Self::arm`] for future documents; `off` runs in the current one.
+    pub async fn disarm(&self, binding: &str, script_id: &str, off: &str) {
+        if !script_id.is_empty() {
+            let _ = self.page_call("Page.removeScriptToEvaluateOnNewDocument", json!({"identifier": script_id})).await;
+        }
+        let _ = self.page_call("Runtime.removeBinding", json!({"name": binding})).await;
+        let _ = self.eval(off).await;
+    }
+
     pub async fn clear_viewport(&self) -> Result<(), String> {
         self.page_call("Emulation.clearDeviceMetricsOverride", json!({})).await.map(|_| ())
     }

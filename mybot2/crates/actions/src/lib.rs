@@ -24,6 +24,7 @@ mod local_time;
 mod meta;
 mod shell;
 pub mod skills_store;
+pub mod teach;
 pub mod toolbox;
 
 use mybot_core::policy::Capability;
