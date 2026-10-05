@@ -29,6 +29,7 @@ url.workspace = true
 hmac = "0.12"
 csv = "1"
 pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+reqwest.workspace = true
 
 [dev-dependencies]
 tempfile = "3"

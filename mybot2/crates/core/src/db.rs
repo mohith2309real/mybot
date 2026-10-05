@@ -49,14 +49,25 @@ CREATE TABLE IF NOT EXISTS task_log (
 
 -- Skills you wrote or taught. The built-in library ships in the binary and is
 -- never stored here; nothing is ever fetched from the internet.
+-- Skills you wrote, taught, or imported (Agent Skills / SKILL.md folders).
+-- Imported skills start disabled: a human reads the review and turns them on.
+-- `digest` is the sha256 of every file at review time; a skill whose files
+-- changed afterwards is refused until reviewed again.
 CREATE TABLE IF NOT EXISTS skills (
   id            TEXT PRIMARY KEY,
   name          TEXT NOT NULL UNIQUE,
-  source        TEXT NOT NULL CHECK (source IN ('manual','taught')),
+  source        TEXT NOT NULL CHECK (source IN ('manual','taught','imported')),
   category      TEXT NOT NULL DEFAULT 'Custom',
   description   TEXT NOT NULL DEFAULT '',
   instructions  TEXT NOT NULL,
   safety_rules  TEXT NOT NULL DEFAULT '',
+  enabled       INTEGER NOT NULL DEFAULT 1,
+  origin        TEXT,
+  dir           TEXT,
+  digest        TEXT,
+  findings      TEXT NOT NULL DEFAULT '[]',
+  license       TEXT,
+  allowed_tools TEXT,
   created_at    TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -163,8 +174,32 @@ pub struct SkillRow {
     pub description: String,
     pub instructions: String,
     pub safety_rules: String,
+    pub enabled: bool,
+    /// Imported skills: where from (path or URL).
+    pub origin: Option<String>,
+    /// Imported skills: the copied folder under ~/.mybot/skills.
+    pub dir: Option<String>,
+    /// Imported skills: sha256 of the files as reviewed.
+    pub digest: Option<String>,
+    /// Imported skills: review findings (JSON).
+    pub findings: String,
+    pub license: Option<String>,
+    pub allowed_tools: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+}
+
+/// Everything recorded about an imported skill.
+pub struct ImportedSkill<'a> {
+    pub name: &'a str,
+    pub description: &'a str,
+    pub body: &'a str,
+    pub origin: &'a str,
+    pub dir: &'a str,
+    pub digest: &'a str,
+    pub findings_json: &'a str,
+    pub license: Option<&'a str>,
+    pub allowed_tools: Option<&'a str>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -413,9 +448,32 @@ impl Db {
             description: r.get("description")?,
             instructions: r.get("instructions")?,
             safety_rules: r.get("safety_rules")?,
+            enabled: r.get::<_, i64>("enabled")? != 0,
+            origin: r.get("origin")?,
+            dir: r.get("dir")?,
+            digest: r.get("digest")?,
+            findings: r.get("findings")?,
+            license: r.get("license")?,
+            allowed_tools: r.get("allowed_tools")?,
             created_at: r.get("created_at")?,
             updated_at: r.get("updated_at")?,
         })
+    }
+
+    /// Record an imported skill — disabled until a human enables it.
+    pub fn add_imported_skill(&self, s: &ImportedSkill<'_>) -> DbResult<SkillRow> {
+        let id = new_id();
+        self.c().execute(
+            "INSERT INTO skills (id, name, source, category, description, instructions, enabled, origin, dir, digest, findings, license, allowed_tools) \
+             VALUES (?1, ?2, 'imported', 'Imported', ?3, ?4, 0, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![id, s.name, s.description, s.body, s.origin, s.dir, s.digest, s.findings_json, s.license, s.allowed_tools],
+        )?;
+        Ok(self.skill(&id)?.expect("just inserted"))
+    }
+
+    pub fn set_skill_enabled(&self, id: &str, enabled: bool) -> DbResult<()> {
+        self.c().execute("UPDATE skills SET enabled=?2, updated_at=datetime('now') WHERE id=?1", params![id, enabled as i64])?;
+        Ok(())
     }
 
     pub fn add_skill(
@@ -443,7 +501,7 @@ impl Db {
 
     pub fn skills(&self) -> DbResult<Vec<SkillRow>> {
         let c = self.c();
-        let mut st = c.prepare("SELECT * FROM skills ORDER BY name")?;
+        let mut st = c.prepare("SELECT * FROM skills ORDER BY source, name")?;
         st.query_map([], Self::skill_row)?.collect()
     }
 

@@ -10,6 +10,8 @@
 
 use std::collections::BTreeMap;
 
+pub mod agent_skill;
+
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 

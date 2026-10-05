@@ -127,6 +127,9 @@ impl Toolbox {
         if let Some(per) = persona.filter(|x| !x.trim().is_empty()) {
             p.push_str(&format!("\n\nYour standing brief from the human:\n{}", per.trim()));
         }
+        if let Some(index) = self.db.as_ref().and_then(crate::skills_store::prompt_index) {
+            p.push_str(&format!("\n\n{index}"));
+        }
         if let Some(sk) = skill {
             p.push_str(&format!("\n\nYou are running this skill:\n{sk}"));
         }
@@ -392,7 +395,10 @@ impl Toolbox {
                 let q = s("query");
                 let mut lines: Vec<String> = mybot_catalog::search_skills(&q, 10).iter().map(|k| format!("- {} [{}] — {}", k.name, k.category, k.description)).collect();
                 if let Some(db) = &self.db {
-                    for k in db.skills().unwrap_or_default() {
+                    // Imported skills appear only once a human enabled them and
+                    // only while their files match what was reviewed.
+                    let usable: Vec<String> = crate::skills_store::usable(db).into_iter().map(|r| r.id).collect();
+                    for k in db.skills().unwrap_or_default().into_iter().filter(|k| k.source != "imported" || usable.contains(&k.id)) {
                         let hay = format!("{} {} {}", k.name, k.description, k.category).to_lowercase();
                         if q.to_lowercase().split_whitespace().any(|w| hay.contains(w)) {
                             lines.push(format!("- {} [{}, {}] — {}", k.name, k.category, k.source, k.description));
@@ -406,7 +412,31 @@ impl Toolbox {
                 if let Some(k) = mybot_catalog::skill(&n) {
                     return ToolOutcome::ok(mybot_catalog::render_skill(k, &Default::default()));
                 }
-                match self.db.as_ref().and_then(|d| d.skill(&n).ok().flatten()) {
+                let Some(db) = self.db.as_ref() else { return ToolOutcome::err(format!("No skill named \"{n}\".")) };
+                match db.skill(&n).ok().flatten() {
+                    Some(k) if k.source == "imported" => match crate::skills_store::package_for_use(db, &n) {
+                        Ok((row, pkg)) => {
+                            // Its files go into this computer, where its scripts may run.
+                            let mut note = String::new();
+                            if pkg.files.len() > 1 {
+                                match self.session.ensure().await {
+                                    Ok(_) => {
+                                        for f in &pkg.files {
+                                            let r = container::write_file(&self.session.conversation, &format!("/workspace/.skills/{}/{}", row.name, f.path), &f.bytes).await;
+                                            if r.code != 0 {
+                                                note = format!("\n\n(Could not copy {} into the computer: {})", f.path, r.stderr.trim());
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    Err(e) => note = format!("\n\n(The computer is not running, so the skill's files are not available: {e})"),
+                                }
+                            }
+                            let files: Vec<(String, usize)> = pkg.files.iter().map(|f| (f.path.clone(), f.bytes.len())).collect();
+                            ToolOutcome::ok(truncate(format!("{}{note}", crate::skills_store::render(&row, &files))))
+                        }
+                        Err(e) => ToolOutcome::err(e),
+                    },
                     Some(k) => ToolOutcome::ok(format!("Skill: {}\n\n{}\n\nSafety rules:\n{}", k.name, k.instructions, k.safety_rules)),
                     None => ToolOutcome::err(format!("No skill named \"{n}\". Use skill_search.")),
                 }
