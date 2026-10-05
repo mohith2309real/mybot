@@ -26,9 +26,16 @@ and export, so third-party skills work too.
 
 ---
 
-## Build and run
+## Download
 
-You need Rust 1.88 or newer, and Docker for the agent computers.
+Ready-made builds for Windows, macOS (Apple silicon and Intel) and Linux are on
+the [releases page](https://github.com/mohith2309real/mybot/releases). The
+release notes say how to open them the first time, since they aren't signed yet.
+You also need Docker for the agent computers.
+
+## Build from source
+
+You need Rust 1.88 or newer.
 
 ```sh
 cd mybot2
@@ -38,9 +45,10 @@ cargo build --release -p mybot-app
 ```
 
 On Linux the window needs X11 or Wayland libraries; on Debian/Ubuntu:
-`sudo apt install libxkbcommon-x11-0 libgl1 libegl1`. It has been built and
-tested on Linux. eframe also supports macOS and Windows, but those have not
-been tried yet.
+`sudo apt install libxkbcommon-x11-0 libgl1 libegl1`. The app has been tried by
+hand on Linux. Windows and macOS builds come from the release workflow
+(`.github/workflows/release.yml`), which builds and smoke-tests each one; push a
+`v*` tag to run it.
 
 ### First run
 
@@ -261,4 +269,5 @@ task, with a stand-in for the Claude API.
   Chromium.
 - **Teach-a-task covers one tab.** It records the tab that was open when
   recording started. Tabs opened during the demonstration aren't recorded.
-- **macOS and Windows** haven't been built or run.
+- **macOS and Windows** are built and smoke-tested by the release workflow,
+  but nobody has used the app on them by hand yet.

@@ -1,0 +1,160 @@
+# Builds MyBot 2.0 for Linux, macOS and Windows and publishes a GitHub release.
+#
+# Runs when a version tag is pushed (git tag v2.0.0 && git push origin v2.0.0),
+# or by hand from the Actions tab with the tag to (re)build.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build and publish (it must already exist)"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    name: Create the release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "MyBot ${TAG#v}" --notes-file mybot2/RELEASE_NOTES.md
+          else
+            gh release create "$TAG" --verify-tag --title "MyBot ${TAG#v}" --notes-file mybot2/RELEASE_NOTES.md
+          fi
+
+  test:
+    name: Test (Linux)
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: mybot2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      # The vault test checks files written by MyBot 1.x, which runs on Node 22.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: .
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: mybot2
+      - run: cargo test --workspace --locked
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-x86_64, os: ubuntu-22.04, target: x86_64-unknown-linux-gnu }
+          - { name: macos-arm64, os: macos-latest, target: aarch64-apple-darwin }
+          - { name: macos-x86_64, os: macos-latest, target: x86_64-apple-darwin }
+          - { name: windows-x86_64, os: windows-latest, target: x86_64-pc-windows-msvc }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: mybot2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: mybot2
+          key: ${{ matrix.target }}
+      - name: Linux build packages
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libx11-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Build
+        run: cargo build --release --locked -p mybot-app --target ${{ matrix.target }}
+
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          dir="mybot2-$TAG-${{ matrix.name }}"
+          mkdir "$dir"
+          cp "target/${{ matrix.target }}/release/mybot2" README.md "$dir/"
+          tar czf "$dir.tar.gz" "$dir"
+          echo "ASSET=$dir.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Package (macOS app)
+        if: runner.os == 'macOS'
+        run: |
+          dir="mybot2-$TAG-${{ matrix.name }}"
+          app="$dir/MyBot.app"
+          mkdir -p "$app/Contents/MacOS"
+          cp "target/${{ matrix.target }}/release/mybot2" "$app/Contents/MacOS/mybot2"
+          cat > "$app/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>MyBot</string>
+            <key>CFBundleDisplayName</key><string>MyBot</string>
+            <key>CFBundleIdentifier</key><string>app.mybot.desktop</string>
+            <key>CFBundleExecutable</key><string>mybot2</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleShortVersionString</key><string>${TAG#v}</string>
+            <key>CFBundleVersion</key><string>${TAG#v}</string>
+            <key>LSMinimumSystemVersion</key><string>11.0</string>
+            <key>NSHighResolutionCapable</key><true/>
+          </dict>
+          </plist>
+          PLIST
+          plutil -lint "$app/Contents/Info.plist"
+          cp README.md "$dir/"
+          tar czf "$dir.tar.gz" "$dir"
+          echo "ASSET=$dir.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          dir="mybot2-$TAG-${{ matrix.name }}"
+          mkdir "$dir"
+          cp "target/${{ matrix.target }}/release/mybot2.exe" README.md "$dir/"
+          7z a "$dir.zip" "$dir" >/dev/null
+          echo "ASSET=$dir.zip" >> "$GITHUB_ENV"
+
+      - name: Smoke test
+        run: |
+          case "${{ runner.os }}" in
+            Windows) "target/${{ matrix.target }}/release/mybot2.exe" --version ;;
+            *) "target/${{ matrix.target }}/release/mybot2" --version ;;
+          esac
+
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            sha256sum "$ASSET" > "$ASSET.sha256"
+          else
+            shasum -a 256 "$ASSET" > "$ASSET.sha256"
+          fi
+          gh release upload "$TAG" "$ASSET" "$ASSET.sha256" --clobber
