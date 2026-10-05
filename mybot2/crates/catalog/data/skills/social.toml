@@ -1,0 +1,104 @@
+[[skill]]
+name = "Draft social posts"
+category = "Social Media"
+description = "Draft posts for several networks from one announcement."
+inputs = ["announcement"]
+instructions = """
+Draft posts announcing {{announcement}} for X, LinkedIn, Instagram caption and Threads, each fitting the network's length and style, with 2–3 relevant hashtags where usual. Save to /workspace/drafts/social.md. Do not post."""
+safety = ["always-confirm: publishing or scheduling a post"]
+
+[[skill]]
+name = "Post a prepared update"
+category = "Social Media"
+description = "Post text the user wrote, stopping for confirmation."
+inputs = ["network", "text_file"]
+instructions = """
+Open {{network}}, sign in with fill_login if needed, start a new post with the exact text from {{text_file}}, attach nothing else, and stop before pressing Post so a human confirms."""
+safety = ["always-confirm: publishing the post"]
+
+[[skill]]
+name = "Mentions report"
+category = "Social Media"
+description = "Collect recent public mentions of a name or brand."
+inputs = ["name"]
+instructions = """
+Search public posts mentioning {{name}} from the last 7 days on the networks you can browse. Summarize sentiment, recurring topics, and posts that may need a reply, with links. Do not reply."""
+
+[[skill]]
+name = "Content calendar"
+category = "Social Media"
+description = "Plan a month of posts."
+inputs = ["theme", "frequency"]
+instructions = """
+Plan a month of posts on {{theme}} at {{frequency}}: date, network, topic, format and a one-line hook for each. Save as /workspace/drafts/content-calendar.csv."""
+
+[[skill]]
+name = "Profile audit"
+category = "Social Media"
+description = "Review a social profile and suggest improvements."
+inputs = ["profile_url"]
+instructions = """
+Open {{profile_url}}. Review the bio, profile and header images, pinned content, posting frequency and engagement on recent posts. Suggest specific improvements. Do not edit the profile."""
+safety = ["always-confirm: changing profile settings"]
+
+[[skill]]
+name = "Hashtag research"
+category = "Social Media"
+description = "Find relevant hashtags with activity levels."
+inputs = ["topic", "network"]
+instructions = """
+Find hashtags on {{network}} related to {{topic}}. For 15 candidates, estimate how active they are from recent posts and whether they attract spam. Recommend 5."""
+
+[[skill]]
+name = "Reply suggestions"
+category = "Social Media"
+description = "Draft replies to comments on your posts."
+inputs = ["post_url"]
+instructions = """
+Open {{post_url}} and read the comments. Draft short, friendly replies to questions and constructive comments; skip spam and trolls. Save drafts to a file; do not post them."""
+safety = ["always-confirm: posting replies"]
+
+[[skill]]
+name = "Competitor social snapshot"
+category = "Social Media"
+description = "Compare competitors' social presence."
+inputs = ["accounts"]
+instructions = """
+For each account in {{accounts}}, record followers, posts in the last 30 days, typical formats, and the three best-performing recent posts. Put it in a table with observations."""
+
+[[skill]]
+name = "Thread from article"
+category = "Social Media"
+description = "Turn an article into a short thread."
+inputs = ["url"]
+instructions = """
+Read {{url}} and write a 6–8 post thread that summarizes it accurately, with the link in the last post. Save the draft; do not publish."""
+safety = ["always-confirm: publishing"]
+
+[[skill]]
+name = "YouTube video digest"
+category = "Social Media"
+description = "Summarize a YouTube video from its description and transcript."
+inputs = ["video_url"]
+sites = ["youtube"]
+instructions = """
+Open {{video_url}}. Read the description and, if available, open the transcript panel. Summarize the main points with timestamps."""
+
+[[skill]]
+name = "LinkedIn post draft"
+category = "Social Media"
+description = "Draft a LinkedIn post about an achievement or lesson."
+inputs = ["topic"]
+sites = ["linkedin"]
+instructions = """
+Draft a LinkedIn post (120–250 words) about {{topic}}: an opening line that earns the click, the story, a takeaway, and a question to invite comments. No hashtag stuffing. Save, do not post."""
+safety = ["always-confirm: publishing"]
+
+[[skill]]
+name = "Reddit research"
+category = "Social Media"
+description = "See what Reddit communities say about something."
+inputs = ["topic"]
+sites = ["reddit"]
+instructions = """
+Search Reddit for {{topic}}. Read the top threads from the last year in relevant subreddits. Summarize common opinions, recommendations and warnings, with links. Do not post or vote."""

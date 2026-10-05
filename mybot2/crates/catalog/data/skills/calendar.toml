@@ -1,0 +1,84 @@
+[[skill]]
+name = "Week ahead brief"
+category = "Calendar & Scheduling"
+description = "Summarize next week's calendar with prep notes."
+sites = ["google-calendar", "outlook"]
+instructions = """
+Open the calendar for next week. List each event with time, attendees and location. Flag conflicts, back-to-back stretches over 3 hours, and events with no agenda. For important meetings, note what to prepare. Do not accept, decline or move anything."""
+safety = ["always-confirm: accepting, declining, creating or moving events"]
+
+[[skill]]
+name = "Find a meeting time"
+category = "Calendar & Scheduling"
+description = "Find free slots for a meeting."
+inputs = ["duration", "window"]
+sites = ["google-calendar", "outlook"]
+instructions = """
+Look at the calendar during {{window}} and list free slots of at least {{duration}} within working hours (9:00–17:30 local), avoiding lunch 12:00–13:00. Give the top 5 options. Do not create the event."""
+
+[[skill]]
+name = "Create a calendar event"
+category = "Calendar & Scheduling"
+description = "Create an event the user asked for."
+inputs = ["title", "when", "attendees"]
+sites = ["google-calendar", "outlook"]
+instructions = """
+Open the calendar and start a new event "{{title}}" at {{when}} with {{attendees}}. Fill the details, then stop before saving and sending invitations so a human confirms."""
+safety = ["always-confirm: saving the event or sending invitations"]
+
+[[skill]]
+name = "Meeting prep pack"
+category = "Calendar & Scheduling"
+description = "Prepare background for an upcoming meeting."
+inputs = ["meeting"]
+sites = ["google-calendar", "outlook"]
+instructions = """
+Find the meeting "{{meeting}}" on the calendar. Collect: the agenda, attendees' public professional roles, related recent email threads, and any linked documents. Write a one-page prep pack in /workspace/meetings/."""
+
+[[skill]]
+name = "Time audit"
+category = "Calendar & Scheduling"
+description = "Report how the last month's time was spent in meetings."
+sites = ["google-calendar", "outlook"]
+instructions = """
+Go through the last 4 weeks of the calendar. Total meeting hours by week, by recurring series, and by most-met person. Flag recurring meetings that might be shortened or dropped. Save as /workspace/reports/time-audit.md."""
+
+[[skill]]
+name = "Birthday and anniversary list"
+category = "Calendar & Scheduling"
+description = "Collect upcoming birthdays and anniversaries."
+sites = ["google-calendar"]
+instructions = """
+Find birthdays and anniversaries in the calendar and contacts for the next 60 days. List date, person and occasion, sorted by date."""
+
+[[skill]]
+name = "Deadline tracker"
+category = "Calendar & Scheduling"
+description = "Pull deadlines from documents and email into one list."
+instructions = """
+Search /workspace documents and recent email for dates that are deadlines (due, by, deadline, expires). Build /workspace/deadlines.md sorted by date with source and what is due."""
+
+[[skill]]
+name = "Timezone meeting planner"
+category = "Calendar & Scheduling"
+description = "Find a meeting time that works across time zones."
+inputs = ["cities", "duration"]
+instructions = """
+For participants in {{cities}}, find the times when all are within 8:00–18:00 local. Show a table of the best three {{duration}} slots in each city's local time. Use the date and time actions for offsets and mention daylight-saving changes in the next month."""
+
+[[skill]]
+name = "Recurring event cleanup"
+category = "Calendar & Scheduling"
+description = "Find stale recurring events."
+sites = ["google-calendar", "outlook"]
+instructions = """
+List recurring events that have had no attendees accept in the last month, or whose organizer has left, or that have not had notes or changes in 6 months. Suggest which to end. Do not delete anything."""
+safety = ["always-confirm: deleting or changing events"]
+
+[[skill]]
+name = "Daily agenda"
+category = "Calendar & Scheduling"
+description = "Write today's agenda with travel time and prep."
+sites = ["google-calendar", "outlook"]
+instructions = """
+Open today's calendar. Write the agenda in order with times, locations, and travel time between in-person events. Add a 'before you go' note for each meeting. Keep it to one screen."""

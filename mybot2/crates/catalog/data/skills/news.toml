@@ -1,0 +1,80 @@
+[[skill]]
+name = "Morning news brief"
+category = "News & Monitoring"
+description = "A short brief of today's top news."
+inputs = ["topics"]
+instructions = """
+Read today's headlines from three reputable outlets. Write a brief: the 5 biggest stories and anything on {{topics}}, two sentences each with links. Keep it under 400 words."""
+
+[[skill]]
+name = "Keyword alert"
+category = "News & Monitoring"
+description = "Check news for a keyword and log new results."
+inputs = ["keyword"]
+instructions = """
+Search recent news for "{{keyword}}". Compare with /workspace/monitor/{{keyword}}.log and report only new articles (title, outlet, date, link), then append them to the log. Best as a routine."""
+
+[[skill]]
+name = "Weather brief"
+category = "News & Monitoring"
+description = "Today's and tomorrow's weather for a place."
+inputs = ["location"]
+instructions = """
+Get the forecast for {{location}} from a national weather service: today and tomorrow, temperature range, rain chance, wind, and any warnings."""
+
+[[skill]]
+name = "Stock watch"
+category = "News & Monitoring"
+description = "Prices and news for a list of tickers."
+inputs = ["tickers"]
+instructions = """
+For each of {{tickers}}, record the latest price, day change, and any company news in the last 24 hours. Not financial advice; do not trade."""
+safety = ["always-confirm: any trade"]
+
+[[skill]]
+name = "Release watcher"
+category = "News & Monitoring"
+description = "Check for new releases of software."
+inputs = ["projects"]
+instructions = """
+For each project in {{projects}} (GitHub repos or product pages), check the latest release version and date, compare with /workspace/monitor/releases.json, and report new releases with their highlights."""
+
+[[skill]]
+name = "Website uptime check"
+category = "News & Monitoring"
+description = "Check that sites are up and fast."
+inputs = ["urls"]
+instructions = """
+Request each of {{urls}} and record status, response time and TLS certificate expiry date. Report anything down, slow or with a certificate expiring within 21 days."""
+
+[[skill]]
+name = "Job posting watcher"
+category = "News & Monitoring"
+description = "Report new postings on a careers page."
+inputs = ["careers_url"]
+instructions = """
+Open {{careers_url}}, list current postings, compare with the last snapshot in /workspace/monitor/, and report new and removed roles."""
+
+[[skill]]
+name = "Government notice watcher"
+category = "News & Monitoring"
+description = "Check an official page for new notices."
+inputs = ["url"]
+instructions = """
+Open {{url}} (a government or regulator notices page). Report notices published since the last check with title, date and link, and update the snapshot."""
+
+[[skill]]
+name = "Podcast episode tracker"
+category = "News & Monitoring"
+description = "List new episodes of chosen podcasts."
+inputs = ["podcasts"]
+instructions = """
+For each podcast in {{podcasts}}, find its feed or page, list episodes from the last 7 days with title, length and a one-line description."""
+
+[[skill]]
+name = "Sports results"
+category = "News & Monitoring"
+description = "Latest results and next fixtures for teams."
+inputs = ["teams"]
+instructions = """
+For each of {{teams}}, report the last result, the league position if relevant, and the next fixture with date and time."""

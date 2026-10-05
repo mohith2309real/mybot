@@ -55,6 +55,19 @@ pub struct Pause {
     pub url: String,
     /// Page-level (acknowledgeable) vs element/model-level.
     pub page_level: bool,
+    /// A confirmation, not a takeover: on "Approve" the same call runs again
+    /// with `RunCtx::approved` set; on "Decline" it never runs.
+    pub confirm: bool,
+}
+
+impl Pause {
+    pub fn new(kind: &str, reason: impl Into<String>, url: impl Into<String>, page_level: bool) -> Self {
+        Self { kind: kind.into(), reason: reason.into(), url: url.into(), page_level, confirm: false }
+    }
+
+    pub fn confirm(reason: impl Into<String>) -> Self {
+        Self { kind: "confirm".into(), reason: reason.into(), url: String::new(), page_level: false, confirm: true }
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -91,6 +104,14 @@ pub struct RunCtx {
     pub task_id: Option<String>,
     pub instruction: String,
     pub cancel: Cancel,
+    /// Set only on the re-run of a call a human just approved.
+    pub approved: bool,
+}
+
+impl RunCtx {
+    pub fn new(bot: impl Into<String>, task_id: Option<String>, instruction: impl Into<String>, cancel: Cancel) -> Self {
+        Self { bot: bot.into(), task_id, instruction: instruction.into(), cancel, approved: false }
+    }
 }
 
 /// The tool surface a run gets.
@@ -311,6 +332,35 @@ pub async fn run_task(
                 on_event(AgentEvent::Paused(pause.clone()));
 
                 let resume = handoff.wait(task_id.as_deref(), &pause, opts.pause_timeout, &ctx.cancel).await;
+
+                if pause.confirm {
+                    // A confirmation: approved → the very same call runs now;
+                    // declined → it never does. Either way the run goes on.
+                    let result = match resume {
+                        Resume::Done => {
+                            let mut approved = ctx.clone();
+                            approved.approved = true;
+                            let o = tools.run(name, input, &approved).await;
+                            log(if o.is_error { "tool_error" } else { "tool_result" }, &format!("{name} (approved) -> {}", preview(&o.content)));
+                            on_event(AgentEvent::ToolResult { name: name.clone(), content: o.content.clone(), is_error: o.is_error });
+                            Part::ToolResult { call_id: id.clone(), content: format!("The human approved it.\n{}", o.content), is_error: o.is_error }
+                        }
+                        Resume::Skipped => Part::ToolResult {
+                            call_id: id.clone(),
+                            content: "The human declined. It was not done. Do not ask again; carry on without it, or stop and say what is blocked.".into(),
+                            is_error: false,
+                        },
+                        Resume::TimedOut => return finish(RunStatus::PausedTimeout, "No human answered the confirmation in time.".into(), i, usage, served),
+                        Resume::Cancelled => return finish(RunStatus::Cancelled, "The task was cancelled while it was waiting for a human.".into(), i, usage, served),
+                    };
+                    if let (Some(db), Some(t)) = (&opts.db, &task_id) {
+                        let _ = db.set_task_status(t, "running");
+                    }
+                    on_event(AgentEvent::Resumed { skipped: resume == Resume::Skipped });
+                    results.push(result);
+                    continue;
+                }
+
                 let note = match resume {
                     Resume::Done => {
                         tools.acknowledge(&pause);

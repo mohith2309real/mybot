@@ -1,0 +1,85 @@
+[[skill]]
+name = "Job search"
+category = "Jobs & Career"
+description = "Find job postings that match a profile."
+inputs = ["role", "location", "must_haves"]
+instructions = """
+Search job boards for {{role}} in {{location}}. Shortlist 15 postings meeting {{must_haves}} posted in the last 14 days: company, title, salary if listed, remote policy, link. Do not apply."""
+safety = ["always-confirm: submitting an application"]
+
+[[skill]]
+name = "Company research for interview"
+category = "Jobs & Career"
+description = "Prepare for an interview with a company."
+inputs = ["company", "role"]
+instructions = """
+Research {{company}} for a {{role}} interview: what they do, recent news, products, culture signals from public reviews, the team if public, and 10 likely interview questions with notes on answering. Save to /workspace/jobs/."""
+
+[[skill]]
+name = "Salary benchmark"
+category = "Jobs & Career"
+description = "Find salary ranges for a role."
+inputs = ["role", "location"]
+instructions = """
+Find salary data for {{role}} in {{location}} from at least three sources (pay-transparency postings, salary sites, government statistics). Give the range and median with dates and sources."""
+
+[[skill]]
+name = "Application tracker"
+category = "Jobs & Career"
+description = "Keep a table of applications and their status."
+sites = ["gmail"]
+instructions = """
+Search email for application confirmations, interview invites and rejections. Update /workspace/jobs/applications.csv with company, role, date applied, latest status and next step."""
+
+[[skill]]
+name = "Fill a job application"
+category = "Jobs & Career"
+description = "Fill an application form and stop before submitting."
+inputs = ["job_url", "resume_file"]
+instructions = """
+Open {{job_url}}, start the application, and fill the fields from {{resume_file}} accurately. Leave anything you are unsure of blank and list it. Stop before submitting so a human reviews."""
+safety = ["always-confirm: submitting the application"]
+
+[[skill]]
+name = "Skills gap analysis"
+category = "Jobs & Career"
+description = "Compare current skills with a target role."
+inputs = ["resume_file", "target_role"]
+instructions = """
+Read 5 postings for {{target_role}}. List the skills they ask for most and compare with {{resume_file}}. Suggest a learning plan for the gaps with specific resources."""
+
+[[skill]]
+name = "Networking list"
+category = "Jobs & Career"
+description = "List relevant communities and events for a career goal."
+inputs = ["field", "location"]
+instructions = """
+Find professional associations, online communities, meetups and conferences for {{field}} near {{location}}. List name, link, cost and how active it seems."""
+
+[[skill]]
+name = "Freelance gig scan"
+category = "Jobs & Career"
+description = "Find freelance projects that fit a skill set."
+inputs = ["skills"]
+sites = ["upwork", "fiverr"]
+instructions = """
+Search freelance platforms for projects needing {{skills}} posted in the last 3 days. List title, budget, client history and link. Do not send proposals."""
+safety = ["always-confirm: sending a proposal or message"]
+
+[[skill]]
+name = "LinkedIn profile review"
+category = "Jobs & Career"
+description = "Suggest improvements to a LinkedIn profile."
+inputs = ["profile_url"]
+sites = ["linkedin"]
+instructions = """
+Open {{profile_url}} and review headline, about section, experience bullets and skills. Suggest specific rewrites focused on outcomes. Do not edit the profile."""
+safety = ["always-confirm: editing the profile"]
+
+[[skill]]
+name = "Interview practice questions"
+category = "Jobs & Career"
+description = "Generate practice questions with model answers."
+inputs = ["role", "level"]
+instructions = """
+Write 15 interview questions for a {{level}} {{role}}: behavioural, technical and situational. For each give what a strong answer covers. Save to /workspace/jobs/practice.md."""

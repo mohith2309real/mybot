@@ -1,0 +1,134 @@
+[[skill]]
+name = "Inbox triage"
+category = "Email & Messages"
+description = "Sort unread email into act, reply, read later and ignore."
+sites = ["gmail", "outlook"]
+instructions = """
+Open the webmail inbox (sign in with fill_login if needed). Go through unread messages from the last 2 days. Put each into: needs action, needs reply, read later, or ignore — with a one-line reason. Do not open attachments, mark as read, archive or delete anything. Report the list."""
+safety = ["Do not delete, archive or mark anything.", "always-confirm: sending any email"]
+
+[[skill]]
+name = "Draft email replies"
+category = "Email & Messages"
+description = "Draft replies to emails that need one, without sending."
+sites = ["gmail", "outlook"]
+instructions = """
+Find emails from the last 3 days that need a reply. For each, draft a short reply in the user's usual tone (read two of their sent emails to match it) and save it as a draft in the mail app — never press send. Report which drafts you created."""
+safety = ["always-confirm: sending an email"]
+
+[[skill]]
+name = "Unsubscribe list"
+category = "Email & Messages"
+description = "Find newsletters you never read and list how to unsubscribe."
+sites = ["gmail", "outlook"]
+instructions = """
+Search the inbox for newsletters and promotional mail from the last 60 days. Group by sender with counts and whether any were opened. List the senders that look unwanted with their unsubscribe link. Do not click unsubscribe links or delete mail."""
+safety = ["always-confirm: clicking an unsubscribe link"]
+
+[[skill]]
+name = "Find an email"
+category = "Email & Messages"
+description = "Find a specific email and summarize it."
+inputs = ["description"]
+sites = ["gmail", "outlook"]
+instructions = """
+Search the mailbox for the email described as "{{description}}" using sender, subject and date filters. Report the sender, date, subject and a summary, plus any dates, amounts or attachments mentioned. Do not forward or reply."""
+
+[[skill]]
+name = "Receipts collector"
+category = "Email & Messages"
+description = "Collect receipts from email into a spreadsheet."
+inputs = ["month"]
+sites = ["gmail", "outlook"]
+instructions = """
+Search email for receipts and order confirmations in {{month}}. For each: date, merchant, amount, currency, order number. Save to /workspace/finance/receipts-{{month}}.csv and report the total by merchant. Do not download attachments unless needed to read the amount."""
+
+[[skill]]
+name = "Follow-up reminder list"
+category = "Email & Messages"
+description = "Find sent emails that never got a reply."
+sites = ["gmail", "outlook"]
+instructions = """
+Look through sent mail from the last 14 days for messages that asked a question or requested something and have no reply in the thread. List them with recipient, date, subject and what was asked."""
+
+[[skill]]
+name = "Send a prepared email"
+category = "Email & Messages"
+description = "Send an email the user has explicitly written or approved."
+inputs = ["to", "subject", "body_file"]
+sites = ["gmail", "outlook"]
+instructions = """
+Compose an email to {{to}} with subject "{{subject}}" and the body from {{body_file}}. Check the recipient address character by character. Stop before pressing send so a human confirms."""
+safety = ["always-confirm: sending the email"]
+
+[[skill]]
+name = "Out-of-office setup"
+category = "Email & Messages"
+description = "Prepare an auto-reply for a date range."
+inputs = ["start", "end", "contact"]
+sites = ["gmail", "outlook"]
+instructions = """
+Draft an out-of-office message for {{start}} to {{end}} pointing urgent matters to {{contact}}. Open the mail settings page for vacation responder and fill in the dates and text, then stop before saving so a human confirms."""
+safety = ["always-confirm: saving changes to account settings"]
+
+[[skill]]
+name = "Thread summary"
+category = "Email & Messages"
+description = "Summarize a long email thread."
+inputs = ["subject"]
+sites = ["gmail", "outlook"]
+instructions = """
+Open the email thread with subject "{{subject}}". Summarize who said what, the decisions made, the open questions, and what is expected of the user, in under 200 words."""
+
+[[skill]]
+name = "Slack catch-up"
+category = "Email & Messages"
+description = "Summarize what happened in Slack channels while you were away."
+inputs = ["channels"]
+sites = ["slack"]
+instructions = """
+Open Slack in the browser. For each channel in {{channels}}, read messages since yesterday morning. Summarize decisions, questions directed at the user, and anything urgent, with links to the messages. Do not post, react or mark as read."""
+safety = ["always-confirm: posting or reacting in Slack"]
+
+[[skill]]
+name = "Contact list cleanup"
+category = "Email & Messages"
+description = "Find duplicate or incomplete contacts."
+inputs = ["contacts_file"]
+instructions = """
+Read the exported contacts in {{contacts_file}} (CSV or vCard). Find likely duplicates (same email or phone, similar names) and contacts missing key fields. Write a cleaned file and a report of merges you suggest; do not change the original."""
+
+[[skill]]
+name = "Discord catch-up"
+category = "Email & Messages"
+description = "Summarize recent messages in Discord channels."
+inputs = ["server", "channels"]
+sites = ["discord"]
+instructions = """
+Open Discord in the browser, go to {{server}}, and read {{channels}} since yesterday. Summarize announcements, questions mentioning the user, and plans with dates. Do not post."""
+safety = ["always-confirm: posting a message"]
+
+[[skill]]
+name = "Email to task list"
+category = "Email & Messages"
+description = "Turn action items buried in email into a task list."
+sites = ["gmail", "outlook"]
+instructions = """
+Read emails from the last 7 days and extract every concrete request or commitment involving the user. Write them to /workspace/tasks.md with source email, due date if stated, and priority guess."""
+
+[[skill]]
+name = "Polite decline"
+category = "Email & Messages"
+description = "Draft a polite way to say no."
+inputs = ["request"]
+instructions = """
+Draft three short, polite replies declining {{request}}: one warm, one brief, one offering an alternative. Save to /workspace/drafts/. Do not send."""
+
+[[skill]]
+name = "Inbox search report"
+category = "Email & Messages"
+description = "Report everything in email about a topic."
+inputs = ["topic"]
+sites = ["gmail", "outlook"]
+instructions = """
+Search the mailbox for {{topic}}. Build a dated list of every relevant email with sender and one-line summary, and a short synthesis of where things stand."""

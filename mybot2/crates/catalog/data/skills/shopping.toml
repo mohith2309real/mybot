@@ -1,0 +1,126 @@
+[[skill]]
+name = "Find the best price"
+category = "Shopping"
+description = "Find where a product is cheapest right now."
+inputs = ["product"]
+instructions = """
+Search for {{product}} at major retailers and price-comparison sites. List the 5 lowest offers with total price including shipping and tax estimate, seller rating, delivery date and return policy. Watch for different models or refurbished items being passed off as new."""
+safety = ["Do not add to cart or buy.", "always-confirm: making a purchase"]
+
+[[skill]]
+name = "Add to cart"
+category = "Shopping"
+description = "Put a specific item in the cart and stop before checkout."
+inputs = ["item_url", "options"]
+instructions = """
+Open {{item_url}}, choose {{options}}, and add it to the cart. Open the cart and report the items, quantities and total. Stop there — checkout is the human's."""
+safety = ["always-confirm: checkout, payment or placing an order"]
+
+[[skill]]
+name = "Gift ideas"
+category = "Shopping"
+description = "Suggest gifts for a person within a budget."
+inputs = ["person", "budget"]
+instructions = """
+Suggest 10 gift ideas for {{person}} under {{budget}}, mixing safe picks and thoughtful ones. For each: what it is, why it fits, approximate price and where to buy. Do not buy anything."""
+
+[[skill]]
+name = "Order tracker"
+category = "Shopping"
+description = "Check the status of recent orders."
+sites = ["amazon", "gmail"]
+instructions = """
+Find recent order confirmations in email or the store's order page. For each order: item, order date, expected delivery, current status and tracking link. Flag anything late or stuck."""
+
+[[skill]]
+name = "Return an item"
+category = "Shopping"
+description = "Start a return and stop before submitting."
+inputs = ["order"]
+sites = ["amazon"]
+instructions = """
+Find the order {{order}} and open its return flow. Report the return window, refund method, any fee and the drop-off options. Fill in the reason the user gave, then stop before submitting so a human confirms."""
+safety = ["always-confirm: submitting a return"]
+
+[[skill]]
+name = "Grocery list to cart"
+category = "Shopping"
+description = "Turn a grocery list into a store cart, stopping before checkout."
+inputs = ["list_file", "store"]
+instructions = """
+Read {{list_file}}. On {{store}}, search each item, pick the closest match at a sensible size, and add it to the cart. Note substitutions and items not found. Stop before checkout and report the cart total."""
+safety = ["always-confirm: checkout or payment"]
+
+[[skill]]
+name = "Coupon finder"
+category = "Shopping"
+description = "Find working coupon codes for a store."
+inputs = ["store"]
+instructions = """
+Look for current coupon codes and promotions for {{store}} on the store's own site and reputable coupon sites. List codes with terms and expiry. Do not apply them to an order or create accounts."""
+
+[[skill]]
+name = "Subscription audit"
+category = "Shopping"
+description = "List active subscriptions found in email and bank exports."
+inputs = ["statement_file"]
+instructions = """
+From {{statement_file}} and receipts in email, list recurring charges: service, amount, frequency, last charge date, and how to cancel. Sort by yearly cost. Do not cancel anything."""
+safety = ["always-confirm: cancelling or changing a subscription"]
+
+[[skill]]
+name = "Product specs sheet"
+category = "Shopping"
+description = "Collect the full specs for a product from the manufacturer."
+inputs = ["product"]
+instructions = """
+Find the manufacturer's official page for {{product}} and copy the complete specifications into a clean table in /workspace/shopping/specs.md, with the source link and model number."""
+
+[[skill]]
+name = "Second-hand search"
+category = "Shopping"
+description = "Search used marketplaces for an item."
+inputs = ["item", "location"]
+instructions = """
+Search second-hand marketplaces for {{item}} near {{location}}. List up to 10 listings with price, condition, distance, posting date and link. Flag listings with scam signals (price far below market, pressure to pay off-platform). Do not message sellers."""
+safety = ["always-confirm: messaging a seller or making an offer"]
+
+[[skill]]
+name = "Warranty lookup"
+category = "Shopping"
+description = "Find warranty terms and how to claim."
+inputs = ["product"]
+instructions = """
+Find the warranty terms for {{product}} on the manufacturer's site: length, what is covered, what voids it, and how to make a claim. Summarize in a few bullets with the link."""
+
+[[skill]]
+name = "Restock watcher"
+category = "Shopping"
+description = "Check whether an out-of-stock item is back."
+inputs = ["item_url"]
+instructions = """
+Open {{item_url}} and report whether it is in stock, the price, and any delivery estimate. Save the result with a timestamp to /workspace/monitor/restock.log. Best run as a routine."""
+
+[[skill]]
+name = "Size and fit research"
+category = "Shopping"
+description = "Find sizing guidance for clothing or shoes."
+inputs = ["item"]
+instructions = """
+Find the size chart for {{item}} and what reviewers say about fit (runs small, large, true to size). Summarize with the chart and a recommendation."""
+
+[[skill]]
+name = "Compare phone plans"
+category = "Shopping"
+description = "Compare mobile plans for a usage profile."
+inputs = ["usage", "country"]
+instructions = """
+Find current mobile plans in {{country}} that fit {{usage}}. Compare monthly cost, data, contract length, roaming and fees. Recommend the two best value options. Do not sign up."""
+
+[[skill]]
+name = "Wishlist price check"
+category = "Shopping"
+description = "Check prices on a list of saved items."
+inputs = ["list_file"]
+instructions = """
+For each URL in {{list_file}}, open it and record the current price and stock status. Compare with the last check in /workspace/shopping/wishlist.csv if present, and report drops."""

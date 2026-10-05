@@ -1,0 +1,164 @@
+[[skill]]
+name = "Clone and explore a repo"
+category = "Developer"
+description = "Clone a repository and explain its structure."
+inputs = ["repo_url"]
+instructions = """
+git clone {{repo_url}} into /workspace/repos/. Explain the project: purpose, language, main directories, entry points, how to build and test (from README and config files). Do not run install scripts from the repo without saying so first."""
+safety = ["always-confirm: running install or build scripts from an unfamiliar repository"]
+
+[[skill]]
+name = "Run a test suite"
+category = "Developer"
+description = "Run a project's tests and summarize failures."
+inputs = ["path"]
+instructions = """
+In {{path}}, find how tests are run (package.json, Makefile, pyproject, Cargo.toml). Run them, and summarize: passed, failed, skipped, and for each failure the test name, error and the most likely cause."""
+
+[[skill]]
+name = "Dependency audit"
+category = "Developer"
+description = "List outdated or vulnerable dependencies."
+inputs = ["path"]
+instructions = """
+In {{path}}, list dependencies and their versions. Check for outdated ones and known vulnerabilities using the ecosystem's own tool if available (npm audit, pip-audit, cargo audit). Report findings by severity. Do not upgrade anything."""
+
+[[skill]]
+name = "Code review checklist"
+category = "Developer"
+description = "Review a diff for common problems."
+inputs = ["path"]
+instructions = """
+Run git diff in {{path}}. Review it for bugs, error handling, security issues (injection, secrets, unsafe deserialization), missing tests and unclear names. Report findings with file and line, most serious first."""
+
+[[skill]]
+name = "Find TODOs"
+category = "Developer"
+description = "List TODO and FIXME comments in a codebase."
+inputs = ["path"]
+instructions = """
+Search {{path}} for TODO, FIXME, HACK and XXX comments. List each with file, line and text, grouped by directory, with counts."""
+
+[[skill]]
+name = "Generate a changelog"
+category = "Developer"
+description = "Draft release notes from git history."
+inputs = ["path", "since"]
+instructions = """
+Read git log in {{path}} since {{since}}. Group commits into Added, Changed, Fixed and Removed, rewrite them for users (not developers), and save CHANGELOG-draft.md. Do not push or tag."""
+safety = ["always-confirm: pushing, tagging or publishing a release"]
+
+[[skill]]
+name = "API endpoint check"
+category = "Developer"
+description = "Check that a list of URLs respond correctly."
+inputs = ["urls_file"]
+instructions = """
+For each URL in {{urls_file}}, request it with curl and record status code, response time and content type. Report failures and slow responses (over 1s)."""
+
+[[skill]]
+name = "Lint and format report"
+category = "Developer"
+description = "Run the project's linters and summarize."
+inputs = ["path"]
+instructions = """
+Run the project's configured linters and formatters in check mode (no writes) in {{path}}. Summarize issues by rule and file."""
+
+[[skill]]
+name = "Explain an error"
+category = "Developer"
+description = "Explain an error message and suggest fixes."
+inputs = ["error"]
+instructions = """
+Explain the error "{{error}}": what it means, the usual causes, and how to fix each. Search official docs and issue trackers for confirmation and link them."""
+
+[[skill]]
+name = "Write unit tests"
+category = "Developer"
+description = "Add unit tests for a function."
+inputs = ["file", "function"]
+instructions = """
+Read {{function}} in {{file}}. Write unit tests in the project's existing test style covering the normal case, edge cases and error cases. Run them and report results. Do not change the function itself."""
+
+[[skill]]
+name = "Docker cleanup report"
+category = "Developer"
+description = "Report unused images and volumes (inside this computer)."
+instructions = """
+Only if docker is available inside this computer: list dangling images, stopped containers and unused volumes with sizes. Do not remove anything."""
+safety = ["always-confirm: removing containers, images or volumes"]
+
+[[skill]]
+name = "SQL query helper"
+category = "Developer"
+description = "Write a SQL query from a description."
+inputs = ["goal", "schema"]
+instructions = """
+Given the schema {{schema}}, write a SQL query that {{goal}}. Explain it, note index use, and give a version for SQLite and PostgreSQL if they differ."""
+
+[[skill]]
+name = "Regex builder"
+category = "Developer"
+description = "Build and test a regular expression."
+inputs = ["goal", "examples"]
+instructions = """
+Write a regex that {{goal}}. Test it with the regex_test action against {{examples}} plus your own tricky cases, and show which match. Explain each part."""
+
+[[skill]]
+name = "Open source license check"
+category = "Developer"
+description = "List the licenses of a project's dependencies."
+inputs = ["path"]
+instructions = """
+List the licenses of dependencies in {{path}} using the ecosystem's metadata. Flag copyleft licenses and unknown licenses. Not legal advice."""
+
+[[skill]]
+name = "GitHub issues digest"
+category = "Developer"
+description = "Summarize recent issues in a repository."
+inputs = ["repo"]
+sites = ["github"]
+instructions = """
+Open https://github.com/{{repo}}/issues. Summarize issues opened in the last 14 days: themes, most-commented, any security reports, and stale ones. Do not comment or close anything."""
+safety = ["always-confirm: commenting, labelling or closing issues"]
+
+[[skill]]
+name = "Pull request summary"
+category = "Developer"
+description = "Explain what a pull request changes."
+inputs = ["pr_url"]
+sites = ["github"]
+instructions = """
+Open {{pr_url}} and its Files tab. Summarize the purpose, the main changes by file, risks, and test coverage. Do not approve, comment or merge."""
+safety = ["always-confirm: approving, commenting or merging"]
+
+[[skill]]
+name = "Benchmark a command"
+category = "Developer"
+description = "Time a command over several runs."
+inputs = ["command", "runs"]
+instructions = """
+Run {{command}} {{runs}} times in /workspace, recording wall time for each. Report min, median, max and mean, and whether the first run was an outlier."""
+
+[[skill]]
+name = "Environment report"
+category = "Developer"
+description = "Report what tools and versions this computer has."
+instructions = """
+Report OS version, CPU and memory, disk free in /workspace, and versions of git, python3, curl, jq and any language runtimes installed."""
+
+[[skill]]
+name = "Static site preview"
+category = "Developer"
+description = "Serve a folder locally and screenshot pages."
+inputs = ["folder"]
+instructions = """
+Serve {{folder}} with python3 -m http.server on a free port in the background, open the index in the browser, screenshot the home page and two linked pages, then stop the server."""
+
+[[skill]]
+name = "Broken link checker"
+category = "Developer"
+description = "Find broken links on a website."
+inputs = ["url"]
+instructions = """
+Open {{url}}, collect same-site links (get_links action), and request each (curl -I, following redirects). Report 4xx/5xx and timeouts with the page they were found on. Limit to 200 links and slow down between requests."""

@@ -124,7 +124,7 @@ fn ack_key(kind: &str, url: &str) -> String {
 }
 
 fn pause(kind: &str, reason: impl Into<String>, url: &str, page_level: bool) -> Pause {
-    Pause { kind: kind.into(), reason: reason.into(), url: url.into(), page_level }
+    Pause::new(kind, reason, url, page_level)
 }
 
 impl Boundaries {

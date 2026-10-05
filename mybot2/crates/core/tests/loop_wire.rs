@@ -105,7 +105,7 @@ fn opts(provider: Arc<dyn providers::Provider>, db: &Db, task: &str) -> RunOptio
         instruction: "What is the heading on example.com?".into(),
         max_iterations: 5,
         pause_timeout: Duration::from_secs(1),
-        ctx: RunCtx { bot: "scout".into(), task_id: Some(task.into()), instruction: String::new(), cancel: Cancel::new() },
+        ctx: RunCtx::new("scout", Some(task.into()), "", Cancel::new()),
         db: Some(db.clone()),
     }
 }

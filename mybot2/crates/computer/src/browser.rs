@@ -467,6 +467,22 @@ impl Browser {
         Ok(format!("closed tab {index}"))
     }
 
+    pub async fn clear_viewport(&self) -> Result<(), String> {
+        self.page_call("Emulation.clearDeviceMetricsOverride", json!({})).await.map(|_| ())
+    }
+
+    /// Attach a file (a path inside the computer) to an <input type=file>.
+    pub async fn set_file_input(&self, r: u32, path: &str) -> Result<(), String> {
+        let obj = self
+            .page_call(
+                "Runtime.evaluate",
+                json!({"expression": format!("document.querySelector('[{REF_ATTR}=\"{r}\"]')"), "returnByValue": false}),
+            )
+            .await?;
+        let id = obj["result"]["objectId"].as_str().ok_or_else(|| format!("No element with ref {r}."))?.to_string();
+        self.page_call("DOM.setFileInputFiles", json!({"files": [path], "objectId": id})).await.map(|_| ())
+    }
+
     pub async fn set_viewport(&self, width: u32, height: u32) -> Result<(), String> {
         self.page_call("Emulation.setDeviceMetricsOverride", json!({"width": width, "height": height, "deviceScaleFactor": 1, "mobile": false})).await.map(|_| ())
     }

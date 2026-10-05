@@ -1,0 +1,77 @@
+[[skill]]
+name = "Weekly review"
+category = "Productivity"
+description = "Review last week and plan next week."
+instructions = """
+Read /workspace/tasks.md, /workspace/deadlines.md and last week's calendar if available. Write a weekly review: done, slipped, lessons, and the top 3 priorities for next week. Save to /workspace/reviews/<date>.md."""
+
+[[skill]]
+name = "Task breakdown"
+category = "Productivity"
+description = "Break a project into small tasks."
+inputs = ["project"]
+instructions = """
+Break {{project}} into tasks of at most half a day each, ordered by dependency, with an estimate and a definition of done for each. Save to /workspace/projects/<slug>.md."""
+
+[[skill]]
+name = "Prioritize a task list"
+category = "Productivity"
+description = "Sort tasks by urgency and importance."
+inputs = ["file"]
+instructions = """
+Read {{file}} and sort tasks into urgent-important, important, urgent, and neither, with one line of reasoning each. Suggest what to drop."""
+
+[[skill]]
+name = "Daily journal prompt"
+category = "Productivity"
+description = "Start today's journal entry with prompts."
+instructions = """
+Create /workspace/journal/<today>.md with today's date, three reflective prompts, a gratitude line, and yesterday's unfinished items carried over from the previous entry."""
+
+[[skill]]
+name = "Decision log"
+category = "Productivity"
+description = "Record a decision with context and options."
+inputs = ["decision"]
+instructions = """
+Append to /workspace/decisions.md: date, the decision "{{decision}}", context, options considered, why this one, and when to revisit."""
+
+[[skill]]
+name = "Focus session plan"
+category = "Productivity"
+description = "Plan a day in focus blocks."
+inputs = ["tasks"]
+instructions = """
+Plan today in 50-minute focus blocks with 10-minute breaks for {{tasks}}, hardest first, with a buffer block in the afternoon."""
+
+[[skill]]
+name = "Project status report"
+category = "Productivity"
+description = "Write a status update from project files."
+inputs = ["folder"]
+instructions = """
+Read the project files in {{folder}}. Write a status update: progress since last update, what is next, risks and blockers, and asks. Green/amber/red overall."""
+
+[[skill]]
+name = "Reading queue triage"
+category = "Productivity"
+description = "Sort saved articles into read, skim and skip."
+inputs = ["links_file"]
+instructions = """
+Open each link in {{links_file}}, read the first part, and classify as read, skim or skip with a one-line summary. Save the triaged list."""
+
+[[skill]]
+name = "Habit tracker setup"
+category = "Productivity"
+description = "Create a simple habit tracker file."
+inputs = ["habits"]
+instructions = """
+Create /workspace/habits.csv with a row per day for the next 30 days and a column per habit in {{habits}}, plus a short README on how to fill it in."""
+
+[[skill]]
+name = "Meeting agenda"
+category = "Productivity"
+description = "Draft an agenda for a meeting."
+inputs = ["purpose", "duration"]
+instructions = """
+Draft a {{duration}} agenda for a meeting about {{purpose}}: goal, timed items with owners, pre-reads, and the decisions needed. Save to /workspace/meetings/."""

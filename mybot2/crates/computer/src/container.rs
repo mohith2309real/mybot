@@ -303,6 +303,37 @@ pub async fn exec(conversation: &str, command: &str, as_bot: Option<&str>, timeo
     run("docker", &args, timeout).await
 }
 
+/// Write bytes to a path inside the container, streamed over stdin (no
+/// argument-length limit, nothing interpolated into a shell string).
+pub async fn write_file(conversation: &str, path: &str, bytes: &[u8]) -> ExecResult {
+    use tokio::io::AsyncWriteExt;
+    let name = container_name(conversation);
+    let script = "mkdir -p \"$(dirname -- \"$1\")\" && cat > \"$1\" && wc -c < \"$1\"";
+    let mut child = match Command::new("docker")
+        .args(["exec", "-i", "-w", "/workspace", &name, "bash", "-c", script, "write", path])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(e) => return ExecResult { code: 127, stdout: String::new(), stderr: e.to_string() },
+    };
+    if let Some(mut stdin) = child.stdin.take() {
+        let _ = stdin.write_all(bytes).await;
+    }
+    match tokio::time::timeout(Duration::from_secs(120), child.wait_with_output()).await {
+        Ok(Ok(out)) => ExecResult {
+            code: out.status.code().unwrap_or(-1),
+            stdout: String::from_utf8_lossy(&out.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&out.stderr).to_string(),
+        },
+        Ok(Err(e)) => ExecResult { code: 127, stdout: String::new(), stderr: e.to_string() },
+        Err(_) => ExecResult { code: 124, stdout: String::new(), stderr: "timed out".into() },
+    }
+}
+
 /// Push one file into the container (host → /workspace/inbox).
 pub async fn deliver_file(c: &Computer, bot: &str, filename: &str, contents: &[u8]) -> Result<Value> {
     use base64::Engine;

@@ -1,0 +1,101 @@
+[[skill]]
+name = "Monthly spending report"
+category = "Finance"
+description = "Categorize a bank export and summarize spending."
+inputs = ["statement_file"]
+instructions = """
+Read {{statement_file}} (CSV). Categorize each transaction (groceries, rent, transport, dining, subscriptions, etc.). Report totals per category, the top 10 merchants, and changes from the previous month if present. Save to /workspace/finance/report.md. Never move money."""
+safety = ["always-confirm: any transfer or payment"]
+
+[[skill]]
+name = "Budget plan"
+category = "Finance"
+description = "Draft a monthly budget from income and spending."
+inputs = ["income", "statement_file"]
+instructions = """
+Using income {{income}} and spending in {{statement_file}}, draft a monthly budget with fixed costs, flexible spending, savings and a buffer. Show it as a table with current vs suggested amounts and three concrete savings ideas."""
+
+[[skill]]
+name = "Bill due dates"
+category = "Finance"
+description = "List upcoming bills and due dates."
+sites = ["gmail"]
+instructions = """
+Search email and /workspace for bills and statements. List each upcoming bill: payee, amount, due date and whether autopay seems on. Sort by due date. Do not pay anything."""
+safety = ["always-confirm: paying a bill"]
+
+[[skill]]
+name = "Account balances check"
+category = "Finance"
+description = "Sign in and record balances across accounts."
+inputs = ["accounts"]
+instructions = """
+For each of {{accounts}}, sign in with fill_login (2FA codes are the human's) and record the current balance. Write a dated table to /workspace/finance/balances.csv. Do not open any transfer or payment pages."""
+safety = ["always-confirm: any transfer, payment or change to account settings"]
+
+[[skill]]
+name = "Invoice from template"
+category = "Finance"
+description = "Generate an invoice document."
+inputs = ["client", "items"]
+instructions = """
+Create an invoice for {{client}} with line items {{items}}: invoice number (next in /workspace/invoices/), dates, quantities, rates, subtotal, tax line and total. Save as Markdown and PDF in /workspace/invoices/. Do not send."""
+safety = ["always-confirm: sending an invoice"]
+
+[[skill]]
+name = "Expense report"
+category = "Finance"
+description = "Build an expense report from receipts."
+inputs = ["receipts_folder"]
+instructions = """
+Read the receipts in {{receipts_folder}} (PDFs and images by filename/metadata, text where available). Build a table of date, merchant, category, amount and currency, with a total. Flag missing receipts or unreadable files."""
+
+[[skill]]
+name = "Currency conversion sheet"
+category = "Finance"
+description = "Convert amounts using today's published rates."
+inputs = ["amounts_file", "to_currency"]
+instructions = """
+Find today's reference exchange rates from a central bank or reputable source. Convert every amount in {{amounts_file}} into {{to_currency}}, noting the rate and its date. Save the converted file."""
+
+[[skill]]
+name = "Loan comparison"
+category = "Finance"
+description = "Compare loan offers by total cost."
+inputs = ["offers_file"]
+instructions = """
+For each loan in {{offers_file}}, compute the monthly payment and total interest using the loan_payment action. Include fees. Rank by total cost and explain the trade-offs. Not financial advice."""
+
+[[skill]]
+name = "Tax document checklist"
+category = "Finance"
+description = "Build a checklist of tax documents to gather."
+inputs = ["country", "situation"]
+instructions = """
+From the tax authority's official site for {{country}}, list the documents typically needed for {{situation}}, with deadlines. Check /workspace for which are already there. Not tax advice."""
+
+[[skill]]
+name = "Investment portfolio snapshot"
+category = "Finance"
+description = "Summarize holdings from a brokerage export."
+inputs = ["holdings_file"]
+instructions = """
+Read {{holdings_file}}. Report total value, allocation by asset class and by position, the top 5 positions, and concentration risks. Do not trade. Not financial advice."""
+safety = ["always-confirm: any trade or transfer"]
+
+[[skill]]
+name = "Savings goal plan"
+category = "Finance"
+description = "Plan how to reach a savings goal."
+inputs = ["goal", "deadline", "current"]
+instructions = """
+Compute how much to save per month to reach {{goal}} by {{deadline}} from {{current}}, with and without interest at a typical savings rate. Suggest a schedule and milestones."""
+
+[[skill]]
+name = "Split a shared bill"
+category = "Finance"
+description = "Work out who owes whom after shared expenses."
+inputs = ["expenses_file"]
+instructions = """
+Read shared expenses in {{expenses_file}} (who paid, amount, who shared). Compute each person's balance and the smallest set of payments to settle up. Do not send money or payment requests."""
+safety = ["always-confirm: sending money or payment requests"]
