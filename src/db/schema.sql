@@ -131,3 +131,23 @@ CREATE INDEX IF NOT EXISTS idx_tasks_bot    ON tasks(bot_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_routines_skill ON routines(skill_id);
 CREATE INDEX IF NOT EXISTS idx_routine_runs ON routine_runs(routine_id);
+
+-- Every time a bot asked to use one of your saved logins, and what you said.
+-- Holds the site and the username only: the password never touches this
+-- database. 'expired' is an unanswered request, which fills nothing -- silence
+-- is not a yes. decided_by='rule' is a login you marked "always for this site".
+CREATE TABLE IF NOT EXISTS login_requests (
+  id          TEXT PRIMARY KEY,
+  task_id     TEXT REFERENCES tasks(id) ON DELETE CASCADE,
+  bot         TEXT NOT NULL,
+  origin      TEXT NOT NULL,
+  username    TEXT NOT NULL,
+  status      TEXT NOT NULL DEFAULT 'pending'
+              CHECK (status IN ('pending','allowed','denied','expired')),
+  always      INTEGER NOT NULL DEFAULT 0,
+  decided_by  TEXT CHECK (decided_by IN ('human','rule','timeout') OR decided_by IS NULL),
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  decided_at  TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_login_requests_status ON login_requests(status);

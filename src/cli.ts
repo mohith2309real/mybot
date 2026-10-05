@@ -36,6 +36,7 @@ import {
 import * as computer from './computer/container.ts';
 import * as browser from './computer/browser.ts';
 import { runTask } from './agent/loop.ts';
+import * as logins from './secrets/logins.ts';
 import {
   addSkill,
   editSkill,
@@ -90,6 +91,16 @@ const USAGE = `mybot
   routines runs <skill>          Firing history
   routines fire <event>          Trigger an event routine by hand
   routines serve                 Run the scheduler in the foreground
+
+  logins add <site> [--label x]  Save a login (prompts; never pass a password as an argument)
+  logins list                    Saved logins — sites and usernames, never passwords
+  logins rm <id | site> [user]   Remove a saved login
+  logins always <site> [user] on|off
+                                 Fill on that site without asking each time
+  logins pending                 Sign-in requests waiting for you
+  logins allow <id> [--always]   Approve a waiting sign-in
+  logins deny <id>               Refuse it
+  logins history                 Every time a saved login was used or refused
 
   tasks [--verbose]              Recent task history
 
@@ -186,6 +197,187 @@ async function cmdKeys(args: string[]): Promise<void> {
   }
 
   throw new Error(`Unknown "keys" subcommand: ${sub}`);
+}
+
+// --- saved logins ----------------------------------------------------------
+
+/**
+ * The passphrase for saved logins — the same one as the API-key vault, so
+ * there is one secret to remember. Checked against whichever store exists
+ * before it is used, so a typo fails here rather than sealing a new file under
+ * a passphrase nobody knows.
+ */
+async function loginsPassphrase(forWrite: boolean): Promise<string> {
+  const fromEnv = process.env.MYBOT_PASSPHRASE;
+  if (fromEnv) return fromEnv;
+
+  if (!logins.loginsExist() && !vaultExists()) {
+    if (!forWrite) throw new Error('No saved logins yet. Add one with: mybot logins add <site>');
+    return getPassphrase(true);
+  }
+
+  const p = await prompt('Vault passphrase: ', true);
+  if (logins.loginsExist()) logins.listLogins(p);
+  else readVault(p);
+  return p;
+}
+
+function flagValue(args: string[], flag: string): string | undefined {
+  const i = args.indexOf(flag);
+  return i >= 0 ? args[i + 1] : undefined;
+}
+
+function siteLabel(origin: string): string {
+  try {
+    return new URL(origin).host;
+  } catch {
+    return origin;
+  }
+}
+
+async function cmdLogins(args: string[]): Promise<void> {
+  const sub = args[0] ?? 'list';
+
+  if (sub === 'add') {
+    const site = args[1];
+    if (!site || site.startsWith('--')) throw new Error('Usage: mybot logins add <site> [--label "Work"]');
+    if (args.includes('--password')) {
+      throw new Error('Passwords are never taken as arguments — they would sit in your shell history. You will be prompted.');
+    }
+    const origin = logins.normalizeOrigin(site);
+    const pass = await loginsPassphrase(true);
+    const username = await prompt(`Username or email for ${siteLabel(origin)}: `);
+    const password = await prompt('Password (input hidden): ', true);
+    const saved = logins.addLogin({ url: origin, username, password, label: flagValue(args, '--label') }, pass);
+    stdout.write(
+      `Saved ${saved.username} on ${saved.origin}.\n` +
+        `A bot asks you before every use. It only fills on exactly ${saved.origin}.\n`,
+    );
+    return;
+  }
+
+  if (sub === 'list') {
+    if (!logins.loginsExist()) {
+      stdout.write('No saved logins.  mybot logins add <site>\n');
+      return;
+    }
+    const rows = logins.listLogins(await loginsPassphrase(false));
+    if (!rows.length) stdout.write('No saved logins.\n');
+    for (const l of rows) {
+      const always = l.alwaysAllow ? '  \x1b[33malways\x1b[0m' : '';
+      const label = l.label ? `  \x1b[2m${l.label}\x1b[0m` : '';
+      stdout.write(`  ${siteLabel(l.origin).padEnd(28)} ${l.username}${label}${always}\n`);
+    }
+    return;
+  }
+
+  if (sub === 'rm') {
+    const selector = args.slice(1).join(' ');
+    if (!selector) throw new Error('Usage: mybot logins rm <id | site> [username]');
+    const removed = logins.removeLogin(selector, await loginsPassphrase(false));
+    for (const l of removed) stdout.write(`Removed ${l.username} on ${l.origin}.\n`);
+    return;
+  }
+
+  if (sub === 'always') {
+    const mode = args.at(-1);
+    if (mode !== 'on' && mode !== 'off') throw new Error('Usage: mybot logins always <site> [username] on|off');
+    const selector = args.slice(1, -1).join(' ');
+    const hit = logins.setAlwaysAllow(selector, mode === 'on', await loginsPassphrase(false));
+    for (const l of hit) {
+      stdout.write(`${l.username} on ${l.origin}: ${mode === 'on' ? 'fills without asking' : 'asks every time'}.\n`);
+    }
+    return;
+  }
+
+  if (sub === 'pending') {
+    const rows = logins.pendingRequests();
+    if (!rows.length) stdout.write('Nothing waiting.\n');
+    for (const r of rows) stdout.write(`  ${r.id}  ${r.bot} → ${siteLabel(r.origin)} as ${r.username}\n`);
+    return;
+  }
+
+  if (sub === 'allow') {
+    const id = args[1];
+    if (!id) throw new Error('Usage: mybot logins allow <id> [--always]');
+    const always = args.includes('--always');
+    const r = logins.allow(id, { always, passphrase: always ? await loginsPassphrase(false) : undefined });
+    stdout.write(`Allowed ${r.bot} to sign in to ${r.origin} as ${r.username}${always ? ' (always, from now on)' : ''}.\n`);
+    return;
+  }
+
+  if (sub === 'deny') {
+    const id = args[1];
+    if (!id) throw new Error('Usage: mybot logins deny <id>');
+    const r = logins.deny(id);
+    stdout.write(`Refused ${r.bot} on ${r.origin}.\n`);
+    return;
+  }
+
+  if (sub === 'history') {
+    for (const r of logins.recentRequests(50)) {
+      const by = r.decided_by === 'rule' ? 'always' : r.decided_by ?? '';
+      stdout.write(`  ${r.created_at}  ${r.status.padEnd(8)} ${by.padEnd(7)} ${r.bot} → ${siteLabel(r.origin)} as ${r.username}\n`);
+    }
+    return;
+  }
+
+  throw new Error(`Unknown "logins" subcommand: ${sub}`);
+}
+
+/**
+ * While a run is in this terminal, sign-in requests are asked right here.
+ *
+ * The prompt is withdrawn the moment the request closes some other way — an
+ * answer from the console or a second terminal, or the timeout — so a stale
+ * question never swallows the next thing you type.
+ */
+function attachTerminalApprover(): () => void {
+  // The first fill of a run asks for the passphrase, and only if a bot
+  // actually signs in. A run that never touches a login never asks.
+  logins.setPassphraseSource(stdin.isTTY ? () => loginsPassphrase(false) : undefined);
+
+  const onRequested = async (r: logins.LoginRequest) => {
+    if (!stdin.isTTY) {
+      stdout.write(`\n  \x1b[33m${r.bot} wants to sign in to ${r.origin} as ${r.username}.\x1b[0m\n`);
+      stdout.write(`  Approve:  mybot logins allow ${r.id}     Refuse:  mybot logins deny ${r.id}\n\n`);
+      return;
+    }
+
+    const ac = new AbortController();
+    const onClosed = (id: string) => {
+      if (id === r.id) ac.abort();
+    };
+    logins.events.on('closed', onClosed);
+    const rl = createInterface({ input: stdin, output: stdout, terminal: true });
+    try {
+      const answer = await rl
+        .question(
+          `\n  \x1b[1m${r.bot} wants to sign in to ${r.origin} as ${r.username}.\x1b[0m\n` +
+            '  Your password is filled by MyBot and never shown to the bot.\n' +
+            '  [y] allow once   [a] always for this site   [N] no: ',
+          { signal: ac.signal },
+        )
+        .catch(() => undefined);
+      if (answer === undefined) return;
+      const a = answer.trim().toLowerCase();
+      if (logins.getRequest(r.id)?.status !== 'pending') return;
+      if (a === 'y' || a === 'yes') logins.allow(r.id);
+      else if (a === 'a' || a === 'always') logins.allow(r.id, { always: true });
+      else logins.deny(r.id);
+    } catch (err) {
+      stdout.write(`  ${err instanceof Error ? err.message : String(err)}\n`);
+    } finally {
+      rl.close();
+      logins.events.off('closed', onClosed);
+    }
+  };
+
+  logins.events.on('requested', onRequested);
+  return () => {
+    logins.events.off('requested', onRequested);
+    logins.setPassphraseSource(undefined);
+  };
 }
 
 async function cmdModels(args: string[]): Promise<void> {
@@ -416,7 +608,11 @@ async function cmdRun(args: string[]): Promise<void> {
   const instruction = args.slice(1).join(' ');
   if (!instruction) throw new Error('Usage: mybot run <bot-name> "<task>"');
 
-  const provider = getProvider(bot.provider, await passphraseFor(bot.provider));
+  const pass = await passphraseFor(bot.provider);
+  const provider = getProvider(bot.provider, pass);
+  // Already typed once for the API key — saved logins share it, so a sign-in
+  // later in this run does not ask again.
+  logins.unlock(pass);
 
   stdout.write('Starting the computer…\n');
   await computer.up((line) => stdout.write(`  ${line}\n`));
@@ -424,8 +620,10 @@ async function cmdRun(args: string[]): Promise<void> {
   const task = createTask(bot.id, instruction);
   stdout.write(`\n\x1b[1m${bot.name}\x1b[0m — ${instruction}\n\n`);
 
+  const detachApprover = attachTerminalApprover();
   const result = await runTask({
     provider,
+    bot: bot.name,
     model: bot.model,
     instruction,
     taskId: task.id,
@@ -440,6 +638,7 @@ async function cmdRun(args: string[]): Promise<void> {
     },
   });
 
+  detachApprover();
   await browser.disconnect();
 
   const { inputTokens: i, outputTokens: o } = result.usage;
@@ -507,16 +706,19 @@ async function cmdSkills(args: string[]): Promise<void> {
     const bot = botName ? getBotByName(botName) : listBots()[0];
     if (!bot) throw new Error('No bot to run this with.  mybot bots add <name> <provider>');
 
-    const provider = getProvider(bot.provider, await passphraseFor(bot.provider));
+    const pass = await passphraseFor(bot.provider);
+    const provider = getProvider(bot.provider, pass);
+    logins.unlock(pass);
     await computer.up((line) => stdout.write(`  ${line}\n`));
 
+    const detachApprover = attachTerminalApprover();
     const result = await runSkill({
       skill,
       bot,
       provider,
       args: args.slice(3).join(' ') || undefined,
       onEvent: streamEvent,
-    });
+    }).finally(detachApprover);
     stdout.write(`\n\x1b[1m${result.status}\x1b[0m — ${result.summary}\n`);
     await browser.disconnect();
     return;
@@ -758,12 +960,14 @@ async function main(): Promise<void> {
       return cmdSkills(rest);
     case 'routines':
       return cmdRoutines(rest);
+    case 'logins':
+      return cmdLogins(rest);
     case 'tasks':
       return cmdTasks();
     case 'stop':
       return cmdStop();
     case 'where':
-      console.log(`vault: ${vaultPath()}\ndb:    ${dbPath()}`);
+      console.log(`vault:  ${vaultPath()}\nlogins: ${logins.loginsPath()}\ndb:     ${dbPath()}`);
       return;
     default:
       stdout.write(USAGE);

@@ -89,6 +89,16 @@ export const api = {
   updateSkill: (id, patch) => request('PUT', `/api/skills/${encodeURIComponent(id)}`, patch),
   deleteSkill: (id) => request('DELETE', `/api/skills/${encodeURIComponent(id)}`),
 
+  logins: () => request('GET', '/api/logins'),
+  addLogin: (login) => request('POST', '/api/logins', login),
+  removeLogin: (id) => request('DELETE', `/api/logins/${encodeURIComponent(id)}`),
+  setLoginAlways: (id, always) =>
+    request('POST', `/api/logins/${encodeURIComponent(id)}/always`, { always }),
+  loginRequests: () => request('GET', '/api/login-requests'),
+  allowLogin: (id, always = false) =>
+    request('POST', `/api/login-requests/${encodeURIComponent(id)}/allow`, { always }),
+  denyLogin: (id) => request('POST', `/api/login-requests/${encodeURIComponent(id)}/deny`, {}),
+
   routines: () => request('GET', '/api/routines'),
   setRoutineEnabled: (id, enabled) =>
     request('POST', `/api/routines/${encodeURIComponent(id)}/enabled`, { enabled }),

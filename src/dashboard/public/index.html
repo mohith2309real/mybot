@@ -45,6 +45,7 @@
       <button class="ghost-btn" id="nav-files">Files</button>
       <button class="ghost-btn" id="nav-skills">Skills</button>
       <button class="ghost-btn" id="nav-routines">Routines</button>
+      <button class="ghost-btn" id="nav-logins">Logins</button>
       <button class="ghost-btn" id="nav-phone">Phone</button>
       <button class="ghost-btn" id="nav-mac">My Mac</button>
     </footer>
@@ -109,6 +110,12 @@
     </form>
   </main>
 </div>
+
+<!-- ── sign-in approvals ──────────────────────────────────────────────
+     A bot asking to use one of your saved logins. Outside any thread on
+     purpose: the ask expires in a few minutes, so it has to be seen from
+     wherever you are, not only from that bot's conversation. -->
+<div class="signin-stack" id="signin-stack" aria-live="assertive"></div>
 
 <!-- ── Agent computer, opened from a conversation ───────────────────── -->
 <div class="sheet-scrim" id="computer-sheet" hidden>

@@ -151,10 +151,69 @@ Three things that cost real debugging time, recorded so they don't get
 
 ### The credential guard
 
-`page_type` refuses password, one-time-code, 2FA, and card fields outright and
-tells the model to stop and hand off. This is the seed of step 3: once the live
-view exists, the refusal becomes a pause. Until then it is a hard no, because an
-unattended bot guessing at a credential field costs a lockout.
+`page_type` refuses password, one-time-code, 2FA, and card fields outright. The
+model never types a credential. Passwords go through saved logins (below); codes
+and cards pause for a human in the live view.
+
+---
+
+## Saved logins
+
+A bot can sign in to your accounts with logins you saved, after you approve each
+use. It works like a password manager's autofill, with you as the approval step.
+
+```bash
+mybot logins add https://github.com/login     # prompts for username + password
+mybot logins list                             # sites and usernames, never passwords
+mybot logins always github.com on             # stop asking for this one site
+mybot logins rm github.com
+mybot logins history                          # every use, allowed or refused
+```
+
+Or open **Logins** in the console. When a bot reaches a sign-in form it calls
+`fill_login`, and you get a card: *"scout wants to sign in to github.com as
+you@… — Deny / Always for this site / Allow once"*. In a terminal run, the same
+question is asked in the terminal. The card shows up in the console from any
+thread and on a paired phone. If you don't answer within 3 minutes, the request
+expires and nothing is filled.
+
+What holds this together:
+
+- **The model never sees a password.** It asks to fill fields by ref. MyBot
+  decrypts the password and types it into the page directly. The password never
+  appears in a tool result, a task log, a database row, a console response, or a
+  request to Anthropic, OpenAI or Google. `page_read` also never shows a password
+  field's contents. The tests check for a leak at each of those points.
+- **Exact origin only.** A login saved for `https://github.com` fills only on
+  `https://github.com`. It won't fill on `gist.github.com`, on
+  `github.com.login-check.example`, or on `http://`. The origin is read from the
+  browser at the moment of filling, never taken from the model. A page that
+  navigated while you were deciding gets nothing.
+- **Real field types.** The password goes only into a real
+  `<input type=password>`, and the username only into a text, email or tel
+  input. A field merely labelled "password" is refused.
+- **Silence is no.** An expired request, a Stop, or a "Deny" all fill nothing,
+  and the bot is told not to ask again in that task. Two-step sign-ins (username
+  page, then password page) need only one approval per task.
+- **2FA stays yours.** One-time codes and card fields still pause for the live
+  view.
+- **Stored like your API keys.** `~/.mybot/logins.enc` uses AES-256-GCM with
+  the same scrypt-derived key and the same passphrase, at mode 0600. Sites and
+  usernames are encrypted too. Logins can be added in the console only from the
+  machine itself, never over the phone link. Approving or denying works from
+  anywhere.
+
+One limit, stated plainly: a bot's `bash` runs in the same container as its
+browser. A prompt-injected bot could, in principle, read a field's contents
+through Chromium's local debugging port in the moment before the form submits.
+That is why `fill_login` submits by default, and why the approval card names
+the exact site and account. Approve a sign-in only when you asked that bot to
+do something on that site.
+
+The console also now refuses cross-site requests: a different `Origin` on a
+state-changing call, or a `Host` that isn't this machine (DNS rebinding).
+Without that check, any web page open in your browser could post to the local
+console and start a bot, or answer a sign-in card.
 
 ---
 
