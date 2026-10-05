@@ -177,7 +177,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    name: Publish ${{ needs.plan.outputs.tag }}
+    name: Publish release
     needs: [plan, test, build]
     if: needs.plan.outputs.publish == 'true'
     runs-on: ubuntu-latest
