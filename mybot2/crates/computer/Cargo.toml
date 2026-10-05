@@ -1,7 +1,28 @@
 [package]
 name = "mybot-computer"
+description = "MyBot 2.0's computer: the Docker desktop, browser control over CDP, the live view (VNC), and the saved-login fill"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
+mybot-core.workspace = true
+mybot-vault.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+futures-util.workspace = true
+reqwest.workspace = true
+tokio-tungstenite.workspace = true
+base64.workspace = true
+regex.workspace = true
+once_cell.workspace = true
+async-trait.workspace = true
+url.workspace = true
+des.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
