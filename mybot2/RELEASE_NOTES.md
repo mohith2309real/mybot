@@ -1,6 +1,13 @@
-MyBot 2.0 is a native desktop app, rebuilt in Rust. There is no web view anywhere: the window and the live view of each bot's computer are drawn by the app itself.
+MyBot 2.1 is a new look, a second way to run GPT, and updates that install themselves. Website: https://mohith2309real.github.io/mybot/
 
-You talk to an AI teammate in the middle and watch its computer on the right. When it hits a CAPTCHA, a 2-step code, a card form, or anything it shouldn't do alone, it stops and asks you. It signs in to your accounts with saved logins only after you allow it, and the AI never sees the password.
+## What's new
+
+- **A new look.** The roster gives every teammate its own colour tile, a role chip, the time and what it last said. The window uses your system's own font, MyBot's warm dark palette and its hexagon mark — now also the app icon on Mac and Windows.
+- **Hand-offs inside the computer.** When a teammate stops for you, the instruction stays on screen inside its computer, with **I'm done, continue** and **Skip this step** right there. While you teach a task, the screen gets a red frame.
+- **GPT: sign in with ChatGPT, or use an API key.** Settings → AI providers → GPT. ChatGPT sign-in runs on your ChatGPT plan through the open-source `openai-oauth` helper (pinned to 2.0.0; needs Node.js). It signs you in through OpenAI in your browser and keeps the token in `~/.codex/auth.json`; MyBot never sees it. From the command line: `mybot2 keys chatgpt` or `mybot2 keys api-key`.
+- **Updates over the air.** MyBot checks for a new release a few seconds after it opens and every six hours, downloads it in the background, and shows **Restart** when it's ready. Every release is signed: MyBot checks the signature against its built-in key, and the download against the signed checksum, before installing anything. Turn it off in Settings → About, or update from the command line with `mybot2 update`.
+
+**Coming from 2.0.0?** Install 2.1 by hand once (2.0.0 can't update itself). From 2.1 on, updates install themselves.
 
 ## Download
 
@@ -11,43 +18,34 @@ You talk to an AI teammate in the middle and watch its computer on the right. Wh
 | Mac with Intel | `mybot2-…-macos-x86_64.tar.gz` |
 | Linux (64-bit) | `mybot2-…-linux-x86_64.tar.gz` |
 
-Each file has a `.sha256` next to it, to check the download.
+Each file has a `.sha256` next to it. `latest.json` and `latest.json.sig` are what the app reads to update itself.
 
-**You also need Docker.** It runs each teammate's computer: install Docker Desktop on Windows or Mac, Docker Engine on Linux. Then bring an API key for Claude, OpenAI or Gemini.
+**You also need Docker.** It runs each teammate's computer: install Docker Desktop on Windows or Mac, Docker Engine on Linux. Then bring an API key for Claude, OpenAI or Gemini — or sign in with ChatGPT.
 
 ### Opening it the first time
 
-These builds aren't signed yet, so your system will warn you once.
+These builds aren't signed by Apple or Microsoft yet, so your system will warn you once.
 
 - **Windows:** unzip and run `mybot2.exe`. If SmartScreen says "Windows protected your PC", click **More info → Run anyway**.
-- **Mac:** unpack and move `MyBot.app` to Applications. Right-click it, choose **Open**, then **Open** again. If macOS still refuses, run `xattr -dr com.apple.quarantine /Applications/MyBot.app`.
+- **Mac:** unpack and move `MyBot.app` to Applications. Right-click it, choose **Open**, then **Open** again. If macOS still refuses, run `xattr -dr com.apple.quarantine /Applications/MyBot.app`. Keep it in Applications: macOS runs apps opened straight from Downloads from a temporary copy, which can't update itself.
 - **Linux:** unpack and run `./mybot2`. The window needs X11 or Wayland; on Debian/Ubuntu: `sudo apt install libxkbcommon-x11-0 libgl1 libegl1`.
 
 The same file is also the command line: `mybot2 --help`.
 
-## What's in it
+## Everything else
 
-- **A teammate per job.** Each one has its own model (Claude, GPT or Gemini), effort level and persona.
-- **Its own computer.** Each teammate gets a desktop and browser in Docker. You watch it live, and you can take over its mouse and keyboard at any time.
-- **It asks before things that matter.** Sending, posting, buying, paying, deleting, changing access and accepting terms all wait for you, unless your request already said to do it. CAPTCHAs, 2-step codes, card fields and checkout pages always stop for you. Destructive commands are refused.
-- **Saved logins.**
-  - You approve each use, or choose "always for this site".
-  - MyBot types the password itself, and only on the exact site it was saved for.
-  - Logins and keys are shared with MyBot 1.x.
-- **Skills.**
-  - 245 built-in skills, plus your own.
-  - Skills in the Agent Skills format (`SKILL.md`, the format Claude uses) import from a folder, a zip or a GitHub link.
-  - Imported skills are checked file by file and start switched off.
-  - Any skill can be exported the same way.
-- **Teach a task.** Do something once in the bot's browser and it becomes a skill. Passwords and codes are never recorded.
-- **Routines.** Run skills on a schedule.
+- **A teammate per job,** each with its own model (Claude, GPT or Gemini), effort level and persona.
+- **Its own computer:** a desktop and browser in Docker. Watch it live; take over its mouse and keyboard any time.
+- **It asks before things that matter.** Sending, posting, buying, paying, deleting, changing access and accepting terms wait for you, unless your request already said to do it. CAPTCHAs, 2-step codes, card fields and checkout always stop for you. Destructive commands are refused.
+- **Saved logins.** You approve each use (or "always for this site"); MyBot types the password itself, only on the site it was saved for. Shared with MyBot 1.x.
+- **Skills:** 245 built in plus your own; Agent Skills (`SKILL.md`) import and export. **Teach a task** by doing it once. **Routines** run skills on a schedule.
 - **249 actions and 300 known sites.**
 
-Full guide: [mybot2/README.md](https://github.com/mohith2309real/mybot/blob/v2.0.0/mybot2/README.md). Complete lists: [features](https://github.com/mohith2309real/mybot/blob/v2.0.0/mybot2/docs/FEATURES.md), [actions](https://github.com/mohith2309real/mybot/blob/v2.0.0/mybot2/docs/ACTIONS.md), [skills](https://github.com/mohith2309real/mybot/blob/v2.0.0/mybot2/docs/SKILLS.md), [sites](https://github.com/mohith2309real/mybot/blob/v2.0.0/mybot2/docs/SITES.md).
+Full guide: [mybot2/README.md](https://github.com/mohith2309real/mybot/blob/v2.1.0/mybot2/README.md).
 
 ## Known limits
 
-- **Windows and Mac are new.** They are built and smoke-tested by this release's automation. The app has been tried by hand only on Linux, so please report anything odd on Windows or Mac.
-- **The Docker computer and live view haven't been tried end to end against a real Docker desktop.** The rest of the app was tried end to end on Linux.
+- **Hand-tested on Linux and macOS, not yet on Windows.** The new window was run and checked on macOS (Apple silicon); ChatGPT sign-in and self-updating were tried end to end there too. Windows is built and smoke-tested by this release's automation.
+- **The Docker computer and live view haven't been tried end to end against a real Docker desktop.**
 - **Teach a task records one tab:** the one open when you press Record.
 - **Routines run only while the app is open,** or while `mybot2 routines watch` runs.

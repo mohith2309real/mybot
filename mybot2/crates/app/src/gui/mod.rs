@@ -112,6 +112,22 @@ pub struct App {
     computer: computer::ComputerPanel,
     screens: screens::Screens,
     snapshot: Option<snapshot::Snapshot>,
+    upd: UpdateUi,
+}
+
+/// Over-the-air updates, as the window sees them (see `update.rs`).
+struct UpdateUi {
+    /// Look for updates in the background (Settings → About).
+    auto: bool,
+    started: Instant,
+    last_check: Option<Instant>,
+    /// Checking (and downloading, if there's something new).
+    job: Option<Job<Result<Option<crate::update::Staged>, String>>>,
+    /// The check was asked for, so say what happened even if it's nothing.
+    manual: bool,
+    ready: Option<crate::update::Staged>,
+    installing: Option<Job<Result<std::path::PathBuf, String>>>,
+    status: Option<(String, bool)>,
 }
 
 impl App {
@@ -148,7 +164,11 @@ impl App {
             computer: Default::default(),
             screens: Default::default(),
             snapshot: snapshot::Snapshot::from_env(),
+            upd: UpdateUi { auto: true, started: Instant::now(), last_check: None, job: None, manual: false, ready: None, installing: None, status: None },
         };
+        crate::update::cleanup();
+        app.upd.ready = crate::update::staged();
+        app.upd.auto = app.engine.db.setting("updates.auto").ok().flatten().as_deref() != Some("off");
         app.reload_bots();
         app.stage_snapshot();
         app
@@ -257,6 +277,7 @@ impl App {
                 ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(egui::UserAttentionType::Informational));
             }
         }
+        self.update_tick(ctx);
         if self.last_roster.elapsed() > Duration::from_secs(2) {
             self.refresh_roster();
         }
@@ -268,6 +289,108 @@ impl App {
             }
         }
         ctx.request_repaint_after(Duration::from_secs(1));
+    }
+
+    // --- updates ----------------------------------------------------------------
+
+    /// Start a check (and, if there's something newer, the download).
+    fn check_for_update(&mut self, ctx: &egui::Context, manual: bool) {
+        if self.upd.job.is_some() || self.upd.installing.is_some() {
+            return;
+        }
+        self.upd.last_check = Some(Instant::now());
+        self.upd.manual = manual;
+        if manual {
+            self.upd.status = Some(("Checking…".into(), false));
+        }
+        self.upd.job = Some(Job::spawn(&self.rt, ctx, async move {
+            match crate::update::check().await? {
+                Some(m) => crate::update::download(&m).await.map(Some),
+                None => Ok(None),
+            }
+        }));
+    }
+
+    fn update_tick(&mut self, ctx: &egui::Context) {
+        if let Some(r) = poll(&mut self.upd.job) {
+            match r {
+                Ok(Some(s)) => {
+                    self.toast(format!("MyBot {} is ready. Restart to update.", s.version));
+                    self.upd.status = Some((format!("MyBot {} is downloaded and verified.", s.version), false));
+                    self.upd.ready = Some(s);
+                }
+                Ok(None) => self.upd.status = Some((format!("You're on the latest version ({}).", crate::update::current()), false)),
+                Err(e) => {
+                    if self.upd.manual {
+                        self.toast_err(e.clone());
+                    }
+                    self.upd.status = Some((e, true));
+                }
+            }
+        }
+        if let Some(r) = poll(&mut self.upd.installing) {
+            match r.and_then(|target| crate::update::relaunch(&target)) {
+                Ok(()) => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                Err(e) => {
+                    self.toast_err(e.clone());
+                    self.upd.status = Some((e, true));
+                }
+            }
+        }
+        // Automatic: a while after opening, then every few hours. Never in a
+        // snapshot, and never from a development build (it can't install).
+        let due = match self.upd.last_check {
+            None => self.upd.started.elapsed() > Duration::from_secs(8),
+            Some(t) => t.elapsed() > crate::update::CHECK_EVERY,
+        };
+        let installable = std::env::var_os("MYBOT_UPDATE_URL").is_some() || crate::update::install_target().is_ok();
+        if self.upd.auto && due && self.upd.ready.is_none() && self.snapshot.is_none() && installable {
+            self.check_for_update(ctx, false);
+        }
+    }
+
+    fn install_update(&mut self, ctx: &egui::Context) {
+        let Some(s) = self.upd.ready.clone() else { return };
+        if self.upd.installing.is_some() {
+            return;
+        }
+        self.upd.installing = Some(Job::blocking(&self.rt, ctx, move || crate::update::install(&s)));
+    }
+
+    /// Settings → About: version, what the last check found, and the switch.
+    pub(super) fn update_controls(&mut self, ui: &mut egui::Ui) {
+        let ctx = ui.ctx().clone();
+        let current = crate::update::current();
+        ui.horizontal(|ui| {
+            ui.label(strong(format!("MyBot {current}")));
+            if let Some(s) = &self.upd.ready {
+                ui.label(RichText::new(format!("{} ready", s.version)).color(ACCENT).size(12.5));
+            }
+        });
+        let busy = self.upd.job.is_some() || self.upd.installing.is_some();
+        ui.horizontal(|ui| {
+            if busy {
+                ui.add(egui::Spinner::new().size(12.0).color(ACCENT));
+                ui.label(muted(if self.upd.installing.is_some() { "Installing…" } else { "Checking for updates…" }));
+            } else if let Some((text, bad)) = &self.upd.status {
+                ui.label(RichText::new(text).color(if *bad { BAD } else { TEXT2 }).size(13.0));
+            }
+        });
+        ui.horizontal(|ui| {
+            if self.upd.ready.is_some() {
+                if ui.add_enabled(!busy, accent_button("Restart to update")).clicked() {
+                    self.install_update(&ctx);
+                }
+            } else if ui.add_enabled(!busy, ghost_button("Check for updates")).clicked() {
+                self.check_for_update(&ctx, true);
+            }
+            let mut auto = self.upd.auto;
+            if ui.checkbox(&mut auto, "Update automatically").changed() {
+                self.upd.auto = auto;
+                let _ = self.engine.db.set_setting("updates.auto", if auto { "on" } else { "off" });
+            }
+        });
+        ui.label(small("Updates come from MyBot's GitHub releases. Each one is signed; MyBot checks the signature against its built-in key, and the download against the signed checksum, before installing anything."));
     }
 
     // --- unlock -----------------------------------------------------------------
@@ -412,6 +535,7 @@ impl App {
                 ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
                     ui.spacing_mut().item_spacing.y = 2.0;
                     let unlocked = self.engine.is_unlocked();
+                    let ctx = ui.ctx().clone();
                     let mut toggle = false;
                     ui.horizontal(|ui| {
                         ui.add_space(8.0);
@@ -430,6 +554,13 @@ impl App {
                             self.engine.lock();
                         }
                         self.unlock = Some(Unlock { pass: String::new(), confirm: String::new(), remember: false, error: None, job: None });
+                    }
+                    if let Some(ver) = self.upd.ready.as_ref().map(|s| s.version.clone()) {
+                        ui.add_space(4.0);
+                        let installing = self.upd.installing.is_some();
+                        if update_pill(ui, &ver, installing).clicked() && !installing {
+                            self.install_update(&ctx);
+                        }
                     }
                     ui.add_space(4.0);
                     let r = ui.available_rect_before_wrap();
@@ -608,6 +739,18 @@ fn nav_row(ui: &mut egui::Ui, icon: &str, label: &str, selected: bool, badge: Op
         p.text(c, Align2::CENTER_CENTER, n.to_string(), theme::semibold(11.0), ACCENT_INK);
     }
     resp.on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
+/// "MyBot 2.1.1 is ready · Restart" — the one place an update asks for you.
+fn update_pill(ui: &mut egui::Ui, version: &str, installing: bool) -> egui::Response {
+    let (rect, resp) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 38.0), Sense::click());
+    let p = ui.painter();
+    p.rect_filled(rect, 12, ACCENT_WASH);
+    p.rect_stroke(rect, 12, Stroke::new(1.0, ACCENT_EDGE), egui::StrokeKind::Inside);
+    paint_glyph(p, egui::Rect::from_center_size(rect.left_center() + Vec2::new(19.0, 0.0), Vec2::splat(26.0)), Glyph::Up, ACCENT);
+    p.text(rect.left_center() + Vec2::new(36.0, 0.0), Align2::LEFT_CENTER, format!("MyBot {version} is ready"), egui::FontId::proportional(13.0), TEXT);
+    p.text(rect.right_center() - Vec2::new(12.0, 0.0), Align2::RIGHT_CENTER, if installing { "Installing…" } else { "Restart" }, theme::semibold(13.0), ACCENT);
+    resp.on_hover_text("Install the update and reopen MyBot").on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
 #[derive(Clone, Copy)]

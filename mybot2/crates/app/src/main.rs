@@ -3,6 +3,7 @@
 mod cli;
 mod engine;
 mod gui;
+mod update;
 
 use clap::Parser;
 

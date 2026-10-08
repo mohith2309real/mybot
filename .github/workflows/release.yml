@@ -6,7 +6,12 @@
 #   yet, publishes v<version> with the archives. Bump the version to release.
 # - On a pushed v* tag, or run by hand with a tag: publishes that tag.
 #
-# A release is published only when the tests and every build pass.
+# A release is published only when the tests and every build pass. Each one
+# carries latest.json (version, and each download's URL, size and SHA-256) and
+# latest.json.sig, an Ed25519 signature of it made with the
+# MYBOT_UPDATE_SIGNING_KEY secret; the app installs updates only when that
+# signature checks out against the public key compiled into it. Publishing also
+# refreshes the website (site/ → the gh-pages branch).
 
 name: Release
 
@@ -15,7 +20,7 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
-    paths: ["mybot2/**", ".github/workflows/release.yml"]
+    paths: ["mybot2/**", "site/**", ".github/workflows/release.yml"]
   workflow_dispatch:
     inputs:
       tag:
@@ -194,6 +199,61 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      - name: Update manifest (latest.json)
+        run: |
+          python3 - <<'PY'
+          import glob, hashlib, json, os, datetime
+          tag = os.environ["TAG"]; repo = os.environ["GITHUB_REPOSITORY"]
+          assets = {}
+          for f in sorted(glob.glob("dist/mybot2-*")):
+              if f.endswith(".sha256"):
+                  continue
+              name = os.path.basename(f)
+              key = name[len(f"mybot2-{tag}-"):].removesuffix(".tar.gz").removesuffix(".zip")
+              data = open(f, "rb").read()
+              assets[key] = {
+                  "name": name,
+                  "url": f"https://github.com/{repo}/releases/download/{tag}/{name}",
+                  "size": len(data),
+                  "sha256": hashlib.sha256(data).hexdigest(),
+              }
+          assert set(assets) == {"linux-x86_64", "macos-arm64", "macos-x86_64", "windows-x86_64"}, assets.keys()
+          manifest = {
+              "version": tag.removeprefix("v"),
+              "tag": tag,
+              "published": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "notes_url": f"https://github.com/{repo}/releases/tag/{tag}",
+              "assets": assets,
+          }
+          open("dist/latest.json", "w").write(json.dumps(manifest, indent=2) + "\n")
+          PY
+          cat dist/latest.json
+
+      - name: Sign the manifest
+        env:
+          SIGNING_KEY: ${{ secrets.MYBOT_UPDATE_SIGNING_KEY }}
+        run: |
+          if [ -z "$SIGNING_KEY" ]; then
+            echo "::error::MYBOT_UPDATE_SIGNING_KEY is not set, so this release couldn't be signed and apps wouldn't install it."
+            exit 1
+          fi
+          umask 077
+          printf '%s\n' "$SIGNING_KEY" > "$RUNNER_TEMP/key.pem"
+          # The secret must belong to the public key compiled into the app, or
+          # every update would be refused. Check before publishing anything.
+          have=$(openssl pkey -in "$RUNNER_TEMP/key.pem" -pubout -outform DER | tail -c 32 | od -An -tx1 | tr -d ' \n')
+          want=$(sed -n '/pub const PUBLIC_KEY/,/];/p' mybot2/crates/app/src/update.rs | grep -o '0x[0-9a-f][0-9a-f]' | sed 's/0x//' | tr -d '\n')
+          if [ "$have" != "$want" ]; then
+            echo "::error::The signing key doesn't match the public key in mybot2/crates/app/src/update.rs."
+            exit 1
+          fi
+          openssl pkeyutl -sign -rawin -inkey "$RUNNER_TEMP/key.pem" -in dist/latest.json -out "$RUNNER_TEMP/sig.bin"
+          openssl base64 -A -in "$RUNNER_TEMP/sig.bin" > dist/latest.json.sig
+          # And verify it the way the app will.
+          openssl pkey -in "$RUNNER_TEMP/key.pem" -pubout -out "$RUNNER_TEMP/pub.pem"
+          openssl pkeyutl -verify -rawin -pubin -inkey "$RUNNER_TEMP/pub.pem" -in dist/latest.json -sigfile "$RUNNER_TEMP/sig.bin"
+          rm -f "$RUNNER_TEMP/key.pem" "$RUNNER_TEMP/sig.bin" "$RUNNER_TEMP/pub.pem"
+
       - name: Create or update the release
         run: |
           ls -la dist
@@ -203,3 +263,6 @@ jobs:
           else
             gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "MyBot ${TAG#v}" --notes-file mybot2/RELEASE_NOTES.md
           fi
+
+      - name: Refresh the website
+        run: site/deploy.sh

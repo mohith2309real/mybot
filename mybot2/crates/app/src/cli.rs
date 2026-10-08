@@ -93,6 +93,15 @@ pub enum Cmd {
     },
     /// The models a provider offers right now.
     Models { provider: String },
+    /// Check for a newer MyBot and install it (signed releases only).
+    Update {
+        /// Only check; don't download or install.
+        #[arg(long)]
+        check: bool,
+        /// Reinstall the latest release even if this is it (a repair).
+        #[arg(long)]
+        force: bool,
+    },
     /// The agent computers (Docker).
     Computer {
         #[command(subcommand)]
@@ -396,6 +405,26 @@ pub fn main(cli: Cli) -> anyhow::Result<()> {
                 println!("{:<14} {:<26} {}{}", s.category, s.name, s.login, if s.two_step { "  (2-step)" } else { "" });
             }
             println!("\n{} of {} sites", list.len(), mybot_catalog::sites().len());
+        }
+        Cmd::Update { check, force } => {
+            use crate::update;
+            let latest = rt.block_on(update::latest()).map_err(anyhow::Error::msg)?;
+            let newer = update::newer(&latest.version, update::current());
+            println!("This is MyBot {}. The latest release is {} (signature checked).", update::current(), latest.version);
+            if check || (!newer && !force) {
+                if newer {
+                    println!("{} is available. Run `mybot2 update` to install it.", latest.version);
+                } else {
+                    println!("You're up to date.");
+                }
+                return Ok(());
+            }
+            let target = update::install_target().map_err(anyhow::Error::msg)?;
+            println!("Downloading {} for {}…", latest.version, update::platform().unwrap_or("this computer"));
+            let staged = rt.block_on(update::download(&latest)).map_err(anyhow::Error::msg)?;
+            println!("Checksum matches. Installing over {}…", target.display());
+            update::install(&staged).map_err(anyhow::Error::msg)?;
+            println!("Installed MyBot {}. Open it again to use the new version.", staged.version);
         }
         Cmd::Models { provider } => {
             unlock(&engine).ok();

@@ -476,8 +476,9 @@ mod tests {
         assert_eq!(padded[edge + 3], 0, "the macOS margin is transparent");
     }
 
-    /// Writes the macOS iconset (`MYBOT_ICON_OUT=dir cargo test -- --ignored`),
-    /// from the same drawing as the window icon; `iconutil` makes the .icns.
+    /// Writes the macOS iconset and the Windows icon sizes
+    /// (`MYBOT_ICON_OUT=dir cargo test -- --ignored`), from the same drawing as
+    /// the window icon; `iconutil` makes the .icns, `assets/make-ico.py` the .ico.
     #[test]
     #[ignore]
     fn write_iconset() {
@@ -487,6 +488,13 @@ mod tests {
         for (px, name) in [(16, "16x16"), (32, "16x16@2x"), (32, "32x32"), (64, "32x32@2x"), (128, "128x128"), (256, "128x128@2x"), (256, "256x256"), (512, "256x256@2x"), (512, "512x512"), (1024, "512x512@2x")] {
             let rgba = icon_rgba(px, 0.1);
             std::fs::write(dir.join(format!("icon_{name}.png")), super::super::snapshot::png(px as u32, px as u32, &rgba)).unwrap();
+        }
+        // Windows sizes, full-bleed (Windows icons carry no margin of their own).
+        let win = dir.join("windows");
+        std::fs::create_dir_all(&win).unwrap();
+        for px in [16u32, 24, 32, 48, 64, 128, 256] {
+            let rgba = icon_rgba(px as usize, 0.03);
+            std::fs::write(win.join(format!("{px}.png")), super::super::snapshot::png(px, px, &rgba)).unwrap();
         }
     }
 }

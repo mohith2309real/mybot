@@ -28,10 +28,15 @@ and export, so third-party skills work too.
 
 ## Download
 
-Ready-made builds for Windows, macOS (Apple silicon and Intel) and Linux are on
-the [releases page](https://github.com/mohith2309real/mybot/releases). The
-release notes say how to open them the first time, since they aren't signed yet.
-You also need Docker for the agent computers.
+**[mohith2309real.github.io/mybot](https://mohith2309real.github.io/mybot/)** —
+builds for Windows, macOS (Apple silicon and Intel) and Linux, also on the
+[releases page](https://github.com/mohith2309real/mybot/releases). The release
+notes say how to open them the first time, since they aren't signed by Apple or
+Microsoft yet. You also need Docker for the agent computers.
+
+Once installed, MyBot keeps itself up to date: it downloads new releases in the
+background, checks their signature, and asks you to **Restart**. See
+[It updates itself](#it-updates-itself).
 
 ## Build from source
 
@@ -55,7 +60,10 @@ hand on Linux. Windows and macOS builds come from the release workflow
 1. Choose a passphrase. It encrypts your API keys and saved logins on this
    computer. You can let the system keychain remember it.
 2. Settings → AI providers: paste a key. A key in `ANTHROPIC_API_KEY`,
-   `OPENAI_API_KEY` or `GEMINI_API_KEY` works too, and wins.
+   `OPENAI_API_KEY` or `GEMINI_API_KEY` works too, and wins. For GPT you can
+   instead choose **Sign in with ChatGPT** and run on your ChatGPT plan (it
+   starts the open-source `openai-oauth` helper, which needs Node.js; the first
+   time, your browser opens to sign in).
 3. **+ New teammate**: give it a name, a model, how much effort to spend, and
    when it should ask you first.
 4. Ask it to do something.
@@ -67,7 +75,7 @@ hand on Linux. Windows and macOS builds come from the release workflow
 | | |
 |---|---|
 | ![Needs you](docs/screenshots/needs-you.png) | ![Agent computer](docs/screenshots/computer.png) |
-| **When it needs you.** Take over, hand back with *I'm done*, or *Skip* the step. For confirmations, *Approve* or *Decline*. | **The agent computer.** Its desktop, live. *Take over* gives you its mouse and keyboard. *Teach a task* records you doing something once. |
+| **When it needs you.** The step waits in the conversation and inside its computer: hand back with *I'm done, continue*, or *Skip this step*. For confirmations, *Approve* or *Decline*. | **The agent computer.** Its desktop, live. *Take over* gives you its mouse and keyboard. *Teach a task* records you doing something once. |
 | ![Sign-in request](docs/screenshots/sign-in-request.png) | ![Skills](docs/screenshots/skills.png) |
 | **A sign-in request.** Allow once, always for this site, or deny. Silence counts as no. | **Skills.** 245 built in, your own, ones you taught, and imported Agent Skills. |
 
@@ -78,6 +86,26 @@ More screenshots: [imported skills](docs/screenshots/imported.png),
 ---
 
 ## How it works
+
+### It updates itself
+
+Every release carries `latest.json` (the version, and each download's URL, size
+and SHA-256) and `latest.json.sig`, an Ed25519 signature made by the release
+workflow. MyBot checks a few seconds after it opens and every six hours:
+
+1. It fetches both files and checks the signature against the public key built
+   into the app (`crates/app/src/update.rs`). Anything not signed by MyBot's
+   release key is ignored.
+2. If the release is newer, it downloads this computer's build and checks its
+   size and SHA-256 against the signed manifest.
+3. It unpacks it and shows **MyBot x.y.z is ready · Restart**. Restarting swaps
+   the app in place (the old one is kept under `~/.mybot/updates/previous`) and
+   reopens it.
+
+An old manifest replayed later can't downgrade you: only a strictly newer
+version is ever installed. Turn automatic updates off in Settings → About;
+`mybot2 update` (or `--check`) does the same from a terminal. Development builds
+run from `target/` never replace themselves.
 
 ### Each teammate gets its own computer
 

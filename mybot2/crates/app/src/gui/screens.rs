@@ -731,6 +731,8 @@ impl App {
             card().show(ui, |ui| {
                 ui.set_width(ui.available_width());
                 ui.label(RichText::new("About").strong());
+                self.update_controls(ui);
+                ui.add_space(6.0);
                 ui.label(small(format!(
                     "MyBot {} · {} actions · {} built-in skills · {} known sites",
                     env!("CARGO_PKG_VERSION"),
