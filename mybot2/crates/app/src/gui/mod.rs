@@ -6,6 +6,7 @@
 mod chat;
 mod computer;
 mod screens;
+mod snapshot;
 pub mod state;
 pub mod theme;
 
@@ -14,7 +15,7 @@ use std::future::Future;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use egui::{Align, Align2, Color32, Id, Layout, Margin, RichText, Sense, Stroke, Vec2};
+use egui::{Align, Align2, Color32, Id, Layout, Margin, Pos2, RichText, Sense, Stroke, Vec2};
 use mybot_core::agent::AgentEvent;
 use mybot_core::db::{Bot, LoginRequest};
 
@@ -103,9 +104,14 @@ pub struct App {
     login_requests: Vec<LoginRequest>,
     last_poll: Instant,
     last_tick: Instant,
+    /// Per-teammate preview line and time for the roster, refreshed every
+    /// couple of seconds rather than queried every frame.
+    roster: HashMap<String, RosterMeta>,
+    last_roster: Instant,
     chat: chat::ChatState,
     computer: computer::ComputerPanel,
     screens: screens::Screens,
+    snapshot: Option<snapshot::Snapshot>,
 }
 
 impl App {
@@ -136,12 +142,59 @@ impl App {
             login_requests: vec![],
             last_poll: Instant::now() - Duration::from_secs(10),
             last_tick: Instant::now(),
+            roster: HashMap::new(),
+            last_roster: Instant::now() - Duration::from_secs(10),
             chat: Default::default(),
             computer: Default::default(),
             screens: Default::default(),
+            snapshot: snapshot::Snapshot::from_env(),
         };
         app.reload_bots();
+        app.stage_snapshot();
         app
+    }
+
+    /// Put the window in the state a snapshot asked for (see `snapshot.rs`).
+    fn stage_snapshot(&mut self) {
+        let Some(snap) = &self.snapshot else { return };
+        let (view, bot) = (snap.view.clone(), snap.bot.clone());
+        if let Some(name) = bot
+            && let Some(b) = self.bots.iter().find(|b| b.name.eq_ignore_ascii_case(&name))
+        {
+            self.selected = Some(b.id.clone());
+        }
+        self.show_computer = matches!(view.as_str(), "computer" | "needs-you");
+        match view.as_str() {
+            "skills" => self.view = View::Skills,
+            "imported" => {
+                self.view = View::Skills;
+                self.screens.show_imported();
+            }
+            "routines" => self.view = View::Routines,
+            "logins" => self.view = View::Logins,
+            "settings" => self.view = View::Settings,
+            "new-teammate" => self.chat.open_new_bot(&self.engine),
+            "needs-you" => {
+                if let Some(id) = self.selected.clone() {
+                    self.threads.load(&self.engine.db, &id);
+                    let pause = mybot_core::agent::Pause {
+                        kind: "two_factor".into(),
+                        reason: "The bank wants a 6-digit code from your phone. Type it into the page, then hand back.".into(),
+                        url: "https://online.examplebank.com/verify".into(),
+                        page_level: true,
+                        confirm: false,
+                    };
+                    self.threads.with(&id, |t| {
+                        t.items.push(state::Item::You("Download last month's bank statement".into()));
+                        t.items.push(state::Item::Step { name: "page_navigate".into(), input: "url: https://online.examplebank.com".into(), result: Some(("Opened".into(), false)) });
+                        t.items.push(state::Item::Step { name: "fill_login".into(), input: "{\"username_ref\":4}".into(), result: Some(("Signed in".into(), false)) });
+                        t.items.push(state::Item::Paused { pause: pause.clone(), task_id: Some("snapshot".into()) });
+                        t.waiting = Some(("snapshot".into(), pause));
+                    });
+                }
+            }
+            _ => {}
+        }
     }
 
     fn reload_bots(&mut self) {
@@ -149,6 +202,31 @@ impl App {
         if self.selected.as_ref().is_none_or(|id| !self.bots.iter().any(|b| &b.id == id)) {
             self.selected = self.bots.first().map(|b| b.id.clone());
         }
+        self.refresh_roster();
+    }
+
+    /// The preview under each name: what was last said, and when.
+    fn refresh_roster(&mut self) {
+        self.last_roster = Instant::now();
+        self.roster = self
+            .bots
+            .iter()
+            .map(|b| {
+                let last = self.engine.db.tasks_for(&b.id, 1).ok().and_then(|mut v| v.pop());
+                let meta = match last {
+                    Some(t) => {
+                        let said = t.summary.as_deref().filter(|s| !s.trim().is_empty() && t.status == "done");
+                        let preview = match said {
+                            Some(s) => one_line(s),
+                            None => format!("You: {}", one_line(&t.instruction)),
+                        };
+                        RosterMeta { preview, when: when_label(t.completed_at.as_deref().unwrap_or(&t.created_at)) }
+                    }
+                    None => RosterMeta { preview: format!("{} · {}", mybot_core::providers::family_label(&b.provider), b.model), when: String::new() },
+                };
+                (b.id.clone(), meta)
+            })
+            .collect();
     }
 
     fn bot(&self) -> Option<&Bot> {
@@ -179,6 +257,9 @@ impl App {
                 ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(egui::UserAttentionType::Informational));
             }
         }
+        if self.last_roster.elapsed() > Duration::from_secs(2) {
+            self.refresh_roster();
+        }
         if self.last_tick.elapsed() > Duration::from_secs(30) && self.unlock.is_none() {
             self.last_tick = Instant::now();
             let n = self.engine.tick_routines(&self.rt, self.sink.clone());
@@ -208,9 +289,9 @@ impl App {
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(BG)).show(ui, |ui| {
             ui.add_space((ui.available_height() * 0.22).max(24.0));
             ui.vertical_centered(|ui| {
-                theme::mark(ui, 64.0);
-                ui.add_space(10.0);
-                ui.label(RichText::new("MyBot").size(30.0).strong());
+                theme::app_tile(ui, 76.0);
+                ui.add_space(12.0);
+                ui.label(RichText::new("MyBot").font(semibold(28.0)).color(TEXT));
                 ui.label(muted(if first_run { "Choose a passphrase. It encrypts your API keys and saved logins on this computer." } else { "Enter your passphrase to unlock your keys and saved logins." }));
                 ui.add_space(18.0);
                 ui.allocate_ui(Vec2::new(360.0, 260.0), |ui| {
@@ -267,38 +348,59 @@ impl App {
 
     // --- left rail -------------------------------------------------------------------
 
+    /// The roster. As in the reference, the colour in the window lives here:
+    /// each teammate's tile, a role chip, the time, and what was last said.
     fn rail(&mut self, ui: &mut egui::Ui) {
         egui::Panel::left("rail")
-            .exact_size(256.0)
+            .exact_size(276.0)
             .resizable(false)
-            .frame(egui::Frame::NONE.fill(RAIL).inner_margin(Margin { left: 12, right: 12, top: 14, bottom: 12 }).stroke(Stroke::new(1.0, LINE)))
+            .frame(egui::Frame::NONE.fill(RAIL).inner_margin(Margin { left: 10, right: 10, top: 14, bottom: 10 }).stroke(Stroke::new(1.0, LINE_SOFT)))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    theme::mark(ui, 26.0);
-                    ui.label(RichText::new("MyBot").size(18.0).strong());
-                    ui.label(small("2.0"));
+                    ui.add_space(6.0);
+                    theme::mark(ui, 24.0);
+                    ui.add_space(2.0);
+                    ui.label(RichText::new("MyBot").font(semibold(16.5)).color(TEXT));
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        ui.add_space(2.0);
+                        if round_icon_button(ui, Glyph::Plus).on_hover_text("New teammate").clicked() {
+                            self.chat.open_new_bot(&self.engine);
+                        }
+                    });
                 });
-                ui.add_space(12.0);
-                if ui.add(theme::accent_button("+  New teammate").min_size(Vec2::new(ui.available_width(), 34.0))).clicked() {
-                    self.chat.open_new_bot(&self.engine);
-                }
-                ui.add_space(14.0);
-                ui.label(small("TEAMMATES"));
-                ui.add_space(2.0);
+                ui.add_space(10.0);
 
-                let nav_h = 4.0 * 34.0 + 40.0;
-                egui::ScrollArea::vertical().max_height((ui.available_height() - nav_h).max(80.0)).auto_shrink([false, true]).show(ui, |ui| {
+                let foot_h = 4.0 * 34.0 + 54.0;
+                egui::ScrollArea::vertical().max_height((ui.available_height() - foot_h).max(80.0)).auto_shrink([false, true]).show(ui, |ui| {
+                    ui.spacing_mut().item_spacing.y = 2.0;
                     if self.bots.is_empty() {
+                        ui.add_space(8.0);
                         ui.label(muted("No teammates yet."));
+                        if ui.add(egui::Button::new(RichText::new("Create one").color(ACCENT)).frame(false)).clicked() {
+                            self.chat.open_new_bot(&self.engine);
+                        }
                     }
                     let mut pick = None;
                     for b in &self.bots {
                         let (working, waiting) = self.threads.with(&b.id, |t| (t.working, t.waiting.is_some()));
                         let running = self.engine.is_running(&b.id);
-                        let dot = if waiting { Some(WARN) } else if running || working { Some(GOOD) } else { None };
-                        let sub = if waiting { "Needs you".to_string() } else if running { "Working…".to_string() } else { format!("{} · {}", mybot_core::providers::family_label(&b.provider), b.model) };
-                        let sel = self.view == View::Chat && self.selected.as_deref() == Some(b.id.as_str());
-                        if roster_row(ui, &b.name, &sub, dot, sel, waiting).clicked() {
+                        let meta = self.roster.get(&b.id);
+                        let (preview, tone) = if waiting {
+                            ("Needs you".to_string(), Tone::Attention)
+                        } else if running || working {
+                            ("Working…".to_string(), Tone::Live)
+                        } else {
+                            (meta.map(|m| m.preview.clone()).unwrap_or_default(), Tone::Quiet)
+                        };
+                        let row = RosterRow {
+                            name: &b.name,
+                            role: mybot_core::providers::family_label(&b.provider),
+                            when: meta.map(|m| m.when.as_str()).unwrap_or(""),
+                            preview: &preview,
+                            tone,
+                            selected: self.view == View::Chat && self.selected.as_deref() == Some(b.id.as_str()),
+                        };
+                        if roster_row(ui, &row).clicked() {
                             pick = Some(b.id.clone());
                         }
                     }
@@ -308,28 +410,38 @@ impl App {
                 });
 
                 ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
+                    ui.spacing_mut().item_spacing.y = 2.0;
+                    let unlocked = self.engine.is_unlocked();
+                    let mut toggle = false;
                     ui.horizontal(|ui| {
-                        let unlocked = self.engine.is_unlocked();
-                        ui.label(small(if unlocked { "🔓 Unlocked" } else { "🔒 Locked" }));
+                        ui.add_space(8.0);
+                        let (dot, text) = if unlocked { (GOOD, "Keys unlocked") } else { (FAINT, "Keys locked") };
+                        ui.label(RichText::new("●").size(9.0).color(dot));
+                        ui.label(small(text));
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            if unlocked {
-                                if ui.add(egui::Button::new(small("Lock")).frame(false)).clicked() {
-                                    self.engine.lock();
-                                    self.unlock = Some(Unlock { pass: String::new(), confirm: String::new(), remember: false, error: None, job: None });
-                                }
-                            } else if ui.add(egui::Button::new(small("Unlock")).frame(false)).clicked() {
-                                self.unlock = Some(Unlock { pass: String::new(), confirm: String::new(), remember: false, error: None, job: None });
+                            ui.add_space(6.0);
+                            if ui.add(link_button(if unlocked { "Lock" } else { "Unlock" })).clicked() {
+                                toggle = true;
                             }
                         });
                     });
-                    ui.add_space(6.0);
-                    let nav = [(View::Settings, "⚙  Settings"), (View::Logins, "🔑  Logins"), (View::Routines, "⏰  Routines"), (View::Skills, "✨  Skills")];
-                    for (v, label) in nav {
+                    if toggle {
+                        if unlocked {
+                            self.engine.lock();
+                        }
+                        self.unlock = Some(Unlock { pass: String::new(), confirm: String::new(), remember: false, error: None, job: None });
+                    }
+                    ui.add_space(4.0);
+                    let r = ui.available_rect_before_wrap();
+                    ui.painter().hline(r.x_range(), r.bottom() - 1.0, Stroke::new(1.0, LINE_SOFT));
+                    ui.add_space(8.0);
+                    let nav = [(View::Settings, "⚙", "Settings"), (View::Logins, "🔑", "Logins"), (View::Routines, "⏰", "Routines"), (View::Skills, "✨", "Skills")];
+                    for (v, icon, label) in nav {
                         let badge = match v {
                             View::Logins if !self.login_requests.is_empty() => Some(self.login_requests.len()),
                             _ => None,
                         };
-                        if nav_row(ui, label, self.view == v, badge).clicked() {
+                        if nav_row(ui, icon, label, self.view == v, badge).clicked() {
                             self.view = v;
                         }
                     }
@@ -400,40 +512,168 @@ impl App {
     }
 }
 
-fn roster_row(ui: &mut egui::Ui, name: &str, sub: &str, dot: Option<Color32>, selected: bool, attention: bool) -> egui::Response {
-    let (rect, resp) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 50.0), Sense::click());
+#[derive(Clone, Copy, PartialEq)]
+enum Tone {
+    Quiet,
+    Live,
+    Attention,
+}
+
+struct RosterRow<'a> {
+    name: &'a str,
+    role: &'a str,
+    when: &'a str,
+    preview: &'a str,
+    tone: Tone,
+    selected: bool,
+}
+
+struct RosterMeta {
+    preview: String,
+    when: String,
+}
+
+/// One teammate in the roster: tile · name · chip · time, then a preview line.
+fn roster_row(ui: &mut egui::Ui, row: &RosterRow) -> egui::Response {
+    let (rect, resp) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 60.0), Sense::click());
+    let p = ui.painter().clone();
+    let bg = if row.selected { RAISED } else if resp.hovered() { Color32::from_rgb(22, 21, 19) } else { RAIL };
+    if bg != RAIL {
+        p.rect_filled(rect, 12, bg);
+    }
+    let dot = match row.tone {
+        Tone::Attention => Some(ACCENT),
+        Tone::Live => Some(GOOD),
+        Tone::Quiet => None,
+    };
+    let tile = egui::Rect::from_min_size(rect.left_top() + Vec2::new(10.0, 11.0), Vec2::splat(38.0));
+    theme::paint_avatar(&p, tile, row.name, dot, bg);
+
+    let x0 = tile.right() + 12.0;
+    let right = rect.right() - 10.0;
+    let top = rect.top() + 11.0;
+
+    // Time, right-aligned on the first line.
+    let when = p.layout_no_wrap(row.when.to_string(), egui::FontId::proportional(11.5), FAINT);
+    let when_x = right - when.size().x;
+    p.galley(Pos2::new(when_x, top + 1.0), when, FAINT);
+
+    // Name, then the role chip, both clipped before the time.
+    let name_max = (when_x - x0 - 8.0 - 56.0).max(40.0);
+    let name = one_row(&p, row.name, theme::semibold(14.0), TEXT, name_max);
+    let name_w = name.size().x;
+    p.galley(Pos2::new(x0, top - 1.0), name, TEXT);
+    if !row.role.is_empty() {
+        let chip = p.layout_no_wrap(row.role.to_string(), theme::semibold(10.0), MUTED);
+        let cr = egui::Rect::from_min_size(Pos2::new(x0 + name_w + 7.0, top + 1.0), chip.size() + Vec2::new(10.0, 3.0));
+        if cr.right() < when_x - 6.0 {
+            p.rect_filled(cr, 5, if row.selected { RAISED2 } else { RAISED });
+            p.galley(cr.min + Vec2::new(5.0, 1.5), chip, MUTED);
+        }
+    }
+
+    // What was last said.
+    let color = match row.tone {
+        Tone::Attention => ACCENT,
+        Tone::Live => GOOD,
+        Tone::Quiet => MUTED,
+    };
+    let preview = one_row(&p, row.preview, egui::FontId::proportional(12.5), color, right - x0);
+    p.galley(Pos2::new(x0, top + 20.0), preview, color);
+
+    resp.on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
+/// Lay a string out on one line, ending in "…" if it doesn't fit.
+fn one_row(p: &egui::Painter, text: &str, font: egui::FontId, color: Color32, max_width: f32) -> std::sync::Arc<egui::Galley> {
+    let mut job = egui::text::LayoutJob::single_section(text.to_string(), egui::TextFormat::simple(font, color));
+    job.wrap = egui::text::TextWrapping { max_width, max_rows: 1, break_anywhere: true, overflow_character: Some('…') };
+    p.layout_job(job)
+}
+
+fn nav_row(ui: &mut egui::Ui, icon: &str, label: &str, selected: bool, badge: Option<usize>) -> egui::Response {
+    let (rect, resp) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 34.0), Sense::click());
     let p = ui.painter();
     if selected {
         p.rect_filled(rect, 10, RAISED);
     } else if resp.hovered() {
-        p.rect_filled(rect, 10, Color32::from_rgb(28, 28, 33));
+        p.rect_filled(rect, 10, Color32::from_rgb(22, 21, 19));
     }
-    let mut child = ui.new_child(egui::UiBuilder::new().max_rect(rect.shrink2(Vec2::new(8.0, 7.0))).layout(Layout::left_to_right(Align::Center)));
-    avatar(&mut child, name, 34.0, dot);
-    child.add_space(4.0);
-    child.vertical(|ui| {
-        ui.spacing_mut().item_spacing.y = 1.0;
-        ui.label(RichText::new(name).strong().color(TEXT));
-        ui.label(RichText::new(sub).size(12.0).color(if attention { WARN } else { MUTED }));
-    });
-    resp.on_hover_cursor(egui::CursorIcon::PointingHand)
-}
-
-fn nav_row(ui: &mut egui::Ui, label: &str, selected: bool, badge: Option<usize>) -> egui::Response {
-    let (rect, resp) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 32.0), Sense::click());
-    let p = ui.painter();
-    if selected {
-        p.rect_filled(rect, 8, RAISED);
-    } else if resp.hovered() {
-        p.rect_filled(rect, 8, Color32::from_rgb(28, 28, 33));
-    }
-    p.text(rect.left_center() + Vec2::new(10.0, 0.0), Align2::LEFT_CENTER, label, egui::FontId::proportional(14.0), if selected { TEXT } else { TEXT2 });
+    let ink = if selected { TEXT } else { TEXT2 };
+    p.text(rect.left_center() + Vec2::new(14.0, 0.0), Align2::LEFT_CENTER, icon, egui::FontId::proportional(13.0), if selected { ACCENT } else { MUTED });
+    p.text(rect.left_center() + Vec2::new(38.0, 0.0), Align2::LEFT_CENTER, label, egui::FontId::proportional(13.5), ink);
     if let Some(n) = badge {
         let c = rect.right_center() - Vec2::new(16.0, 0.0);
         p.circle_filled(c, 9.0, ACCENT);
-        p.text(c, Align2::CENTER_CENTER, n.to_string(), egui::FontId::proportional(11.0), ACCENT_INK);
+        p.text(c, Align2::CENTER_CENTER, n.to_string(), theme::semibold(11.0), ACCENT_INK);
     }
     resp.on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
+#[derive(Clone, Copy)]
+pub enum Glyph {
+    Plus,
+    Up,
+    Stop,
+}
+
+/// A small round icon button, the glyph drawn rather than typed (font
+/// coverage for arrows varies by platform).
+pub fn round_icon_button(ui: &mut egui::Ui, glyph: Glyph) -> egui::Response {
+    let (rect, resp) = ui.allocate_exact_size(Vec2::splat(28.0), Sense::click());
+    let p = ui.painter();
+    let fill = if resp.hovered() { RAISED2 } else { RAISED };
+    p.circle_filled(rect.center(), 14.0, fill);
+    paint_glyph(p, rect, glyph, TEXT2);
+    resp.on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
+pub fn paint_glyph(p: &egui::Painter, rect: egui::Rect, glyph: Glyph, color: Color32) {
+    let c = rect.center();
+    let k = rect.width() * 0.22;
+    let st = Stroke::new(1.8, color);
+    match glyph {
+        Glyph::Plus => {
+            p.line_segment([c - Vec2::new(k, 0.0), c + Vec2::new(k, 0.0)], st);
+            p.line_segment([c - Vec2::new(0.0, k), c + Vec2::new(0.0, k)], st);
+        }
+        Glyph::Up => {
+            let st = Stroke::new(2.0, color);
+            p.line_segment([c + Vec2::new(0.0, k * 1.1), c - Vec2::new(0.0, k * 1.1)], st);
+            p.line_segment([c - Vec2::new(0.0, k * 1.1), c + Vec2::new(-k, -k * 0.1)], st);
+            p.line_segment([c - Vec2::new(0.0, k * 1.1), c + Vec2::new(k, -k * 0.1)], st);
+        }
+        Glyph::Stop => {
+            p.rect_filled(egui::Rect::from_center_size(c, Vec2::splat(k * 1.5)), 2, color);
+        }
+    }
+}
+
+/// First line of a message, whitespace collapsed.
+fn one_line(s: &str) -> String {
+    let first = s.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or("");
+    let first = first.trim_start_matches(['#', '*', '-', ' ']);
+    first.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// "14:05" today, "Yesterday", a weekday this week, else "3 Oct".
+fn when_label(stored: &str) -> String {
+    use chrono::{Datelike, Local, NaiveDateTime, TimeZone, Utc};
+    let Ok(naive) = NaiveDateTime::parse_from_str(stored.get(..19).unwrap_or(stored), "%Y-%m-%d %H:%M:%S")
+        .or_else(|_| NaiveDateTime::parse_from_str(stored.get(..19).unwrap_or(stored), "%Y-%m-%dT%H:%M:%S"))
+    else {
+        return String::new();
+    };
+    let at = Utc.from_utc_datetime(&naive).with_timezone(&Local);
+    let now = Local::now();
+    let days = (now.date_naive() - at.date_naive()).num_days();
+    match days {
+        0 => at.format("%H:%M").to_string(),
+        1 => "Yesterday".into(),
+        2..=6 => at.format("%a").to_string(),
+        _ if at.year() == now.year() => at.format("%-d %b").to_string(),
+        _ => at.format("%-d %b %Y").to_string(),
+    }
 }
 
 impl eframe::App for App {
@@ -462,9 +702,15 @@ impl eframe::App for App {
         self.teach_modal(&ctx);
         self.approvals(&ctx);
         self.toasts(&ctx);
+        if let Some(s) = &mut self.snapshot {
+            s.tick(&ctx);
+        }
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        if self.snapshot.is_some() {
+            return;
+        }
         if let Some(s) = &self.selected {
             storage.set_string("selected", s.clone());
         }
@@ -479,32 +725,17 @@ impl eframe::App for App {
     }
 }
 
-/// The window icon: MyBot's hexagon, drawn here (no image files).
+/// The window and Dock icon: the MyBot app icon, rasterised at startup.
 fn icon() -> egui::IconData {
-    let n = 64usize;
-    let mut rgba = vec![0u8; n * n * 4];
-    let c = (n as f32 - 1.0) / 2.0;
-    let inside = |x: f32, y: f32, r: f32| -> bool {
-        // Pointy-top hexagon: |y| ≤ r and the two slanted edges.
-        let (dx, dy) = ((x - c).abs(), (y - c).abs());
-        dx <= r * 0.866 && dy <= r - dx * 0.577
-    };
-    for y in 0..n {
-        for x in 0..n {
-            let (fx, fy) = (x as f32, y as f32);
-            let ring = inside(fx, fy, 30.0) && !inside(fx, fy, 25.0);
-            let core = inside(fx, fy, 13.0);
-            if ring || core {
-                let i = (y * n + x) * 4;
-                rgba[i..i + 4].copy_from_slice(&[245, 166, 35, 255]);
-            }
-        }
-    }
-    egui::IconData { rgba, width: n as u32, height: n as u32 }
+    let n = 256;
+    // macOS shows this in the Dock when running unbundled; give it the same
+    // margin a bundled icon has, so it isn't oversized next to its neighbours.
+    let margin = if cfg!(target_os = "macos") { 0.1 } else { 0.0 };
+    egui::IconData { rgba: theme::icon_rgba(n, margin), width: n as u32, height: n as u32 }
 }
 
 pub fn run(engine: Arc<Engine>, rt: tokio::runtime::Handle) -> eframe::Result {
-    let options = eframe::NativeOptions {
+    let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("MyBot")
             .with_app_id("mybot")
@@ -513,5 +744,11 @@ pub fn run(engine: Arc<Engine>, rt: tokio::runtime::Handle) -> eframe::Result {
             .with_icon(icon()),
         ..Default::default()
     };
+    // A snapshot must neither read nor overwrite the real window's saved
+    // size, scroll positions and selection.
+    if std::env::var_os("MYBOT_SNAPSHOT").is_some_and(|v| !v.is_empty()) {
+        options.persistence_path = Some(mybot_vault::home().join("snapshot-ui.ron"));
+        options.persist_window = false;
+    }
     eframe::run_native("MyBot", options, Box::new(move |cc| Ok(Box::new(App::new(cc, engine, rt)))))
 }

@@ -78,32 +78,35 @@ impl App {
             .default_size(560.0_f32.min(room))
             .size_range(320.0_f32.min(room)..=room.min(1100.0))
             .resizable(true)
-            .frame(egui::Frame::NONE.fill(RAIL).inner_margin(Margin::same(14)).stroke(Stroke::new(1.0, LINE)))
+            .frame(egui::Frame::NONE.fill(RAIL).inner_margin(Margin::same(14)).stroke(Stroke::new(1.0, LINE_SOFT)))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new("Agent computer").strong().size(15.5));
+                    ui.label(RichText::new("Agent computer").font(semibold(15.0)).color(TEXT));
                     let (dot, text) = match (&self.computer.view, self.computer.connecting.is_some() || self.computer.starting) {
                         (Some(v), _) if v.is_connected() => (GOOD, "Live"),
-                        (_, true) => (WARN, "Connecting…"),
+                        (_, true) => (ACCENT, "Connecting…"),
                         _ => (FAINT, "Off"),
                     };
-                    ui.label(RichText::new("•").color(dot).size(20.0));
+                    ui.label(RichText::new("●").size(9.0).color(dot));
                     ui.label(small(text));
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         if let Some(d) = &self.computer.desktop
-                            && ui.add(egui::Button::new(small("Open in browser ↗")).frame(false)).on_hover_text("The same desktop in a browser tab").clicked() {
-                                ctx.open_url(egui::OpenUrl::new_tab(d.web_url()));
-                            }
+                            && ui.add(link_button("↗")).on_hover_text("Open the same desktop in a browser tab").clicked()
+                        {
+                            ctx.open_url(egui::OpenUrl::new_tab(d.web_url()));
+                        }
                         let live = self.computer.view.as_ref().is_some_and(|v| v.is_connected());
                         if live {
                             let t = if self.computer.takeover { accent_button("Hand back") } else { ghost_button("Take over") };
-                            if ui.add(t).on_hover_text("Use the bot's mouse and keyboard yourself").clicked() {
+                            if ui.add(t).on_hover_text("Use the teammate's mouse and keyboard yourself").clicked() {
                                 self.computer.takeover = !self.computer.takeover;
                             }
                         }
                     });
                 });
                 ui.add_space(8.0);
+                self.handoff_bar(ui, &bot);
+                self.recording_bar(ui, &bot);
                 self.screen(ui, &bot);
                 ui.add_space(10.0);
                 self.teach_section(ui, &bot);
@@ -120,6 +123,51 @@ impl App {
                     });
                 });
             });
+    }
+
+    /// The step the teammate is waiting on, inside the computer — the reference's
+    /// pattern: the instruction stays on screen while you do it, and handing
+    /// back is one click from the thing you just finished.
+    fn handoff_bar(&mut self, ui: &mut egui::Ui, bot: &Bot) {
+        let Some((thread_task, pause)) = self.threads.with(&bot.id, |t| t.waiting.clone()) else { return };
+        if pause.confirm {
+            return; // an approval, answered in the thread
+        }
+        let task = self.engine.runs.lock().unwrap().get(&bot.id).map(|r| r.task_id.clone()).unwrap_or(thread_task);
+        egui::Frame::NONE.fill(ACCENT_WASH).stroke(Stroke::new(1.0, ACCENT_EDGE)).corner_radius(12).inner_margin(Margin::symmetric(12, 9)).show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.add(egui::Label::new(RichText::new(&pause.reason).color(TEXT).size(13.0)).wrap());
+            ui.horizontal(|ui| {
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    if ui.add(light_button("I'm done, continue")).clicked() {
+                        self.computer.takeover = false;
+                        self.engine.handoffs.resume(&task, false);
+                    }
+                    if ui.add(link_button("Skip this step")).clicked() {
+                        self.engine.handoffs.resume(&task, true);
+                    }
+                });
+            });
+        });
+        ui.add_space(8.0);
+    }
+
+    /// While teaching, say so above the screen (the screen also gets a red frame).
+    fn recording_bar(&mut self, ui: &mut egui::Ui, bot: &Bot) {
+        let Some(rec) = &self.computer.recorder else { return };
+        let el = rec.elapsed().as_secs();
+        let blink = (ui.input(|i| i.time) * 2.0) as i64 % 2 == 0;
+        egui::Frame::NONE.fill(Color32::from_rgb(38, 16, 18)).stroke(Stroke::new(1.0, Color32::from_rgb(110, 36, 42))).corner_radius(12).inner_margin(Margin::symmetric(12, 8)).show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                ui.label(RichText::new("●").size(11.0).color(if blink { BAD } else { Color32::from_rgb(120, 40, 46) }));
+                ui.label(RichText::new(format!("{} is watching and learning", bot.name)).color(TEXT).size(13.0));
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    ui.label(small(format!("{:02}:{:02} · {} actions", el / 60, el % 60, rec.count())));
+                });
+            });
+        });
+        ui.add_space(8.0);
     }
 
     /// Follow the selected bot; connect when its computer is up.
@@ -187,7 +235,7 @@ impl App {
             // The frame's 1 px stroke sits outside its content: leave room for it,
             // or a resizable panel grows by 2 px every frame.
             let w = ui.available_width() - 2.0;
-            egui::Frame::NONE.fill(Color32::from_rgb(10, 10, 12)).corner_radius(12).stroke(Stroke::new(1.0, LINE)).show(ui, |ui| {
+            egui::Frame::NONE.fill(Color32::from_rgb(9, 8, 7)).corner_radius(14).stroke(Stroke::new(1.0, LINE_SOFT)).show(ui, |ui| {
                 ui.set_min_size(Vec2::new(w, w * 0.6));
                 ui.vertical_centered(|ui| {
                     ui.add_space(w * 0.16);
@@ -195,8 +243,9 @@ impl App {
                         ui.add(egui::Spinner::new().size(22.0).color(ACCENT));
                         ui.label(muted(if self.computer.starting { "Starting the computer… the first start builds its image and can take a few minutes." } else { "Looking for the computer…" }));
                     } else {
-                        ui.label(RichText::new("🖥").size(34.0));
-                        ui.label(muted(format!("{}'s computer is off.", bot.name)));
+                        avatar(ui, &bot.name, 40.0, None);
+                        ui.add_space(4.0);
+                        ui.label(RichText::new(format!("{}'s computer is off", bot.name)).font(semibold(14.5)).color(TEXT2));
                         ui.label(small("It starts by itself when a task needs it."));
                         if let Some(e) = &self.computer.error {
                             ui.add_space(4.0);
@@ -232,8 +281,9 @@ impl App {
         let size = Vec2::new(h * tw as f32 / th as f32, h);
         let takeover = self.computer.takeover;
         let resp = ui.add(egui::Image::from_texture(egui::load::SizedTexture::new(tex.id(), size)).corner_radius(10).sense(if takeover { Sense::click_and_drag() } else { Sense::hover() }));
-        let frame_color = if takeover { ACCENT } else { LINE };
-        ui.painter().rect_stroke(resp.rect, 10, Stroke::new(if takeover { 2.0 } else { 1.0 }, frame_color), egui::StrokeKind::Outside);
+        let recording = self.computer.recorder.is_some();
+        let (frame_w, frame_color) = if recording { (2.5, BAD) } else if takeover { (2.0, ACCENT) } else { (1.0, LINE) };
+        ui.painter().rect_stroke(resp.rect, 10, Stroke::new(frame_w, frame_color), egui::StrokeKind::Outside);
 
         if !takeover {
             if resp.hovered() {

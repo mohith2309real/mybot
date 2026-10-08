@@ -2329,6 +2329,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "clap",
+ "dirs",
  "eframe",
  "egui",
  "libc",

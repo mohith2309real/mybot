@@ -123,8 +123,11 @@ jobs:
         run: |
           dir="mybot2-$TAG-${{ matrix.name }}"
           app="$dir/MyBot.app"
-          mkdir -p "$app/Contents/MacOS"
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
           cp "target/${{ matrix.target }}/release/mybot2" "$app/Contents/MacOS/mybot2"
+          # The MyBot mark (assets/icon.svg); regenerate the .icns with
+          # MYBOT_ICON_OUT=dir cargo test -p mybot-app write_iconset -- --ignored
+          cp assets/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
           cat > "$app/Contents/Info.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -135,6 +138,7 @@ jobs:
             <key>CFBundleIdentifier</key><string>app.mybot.desktop</string>
             <key>CFBundleExecutable</key><string>mybot2</string>
             <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleIconFile</key><string>AppIcon</string>
             <key>CFBundleShortVersionString</key><string>${TAG#v}</string>
             <key>CFBundleVersion</key><string>${TAG#v}</string>
             <key>LSMinimumSystemVersion</key><string>11.0</string>

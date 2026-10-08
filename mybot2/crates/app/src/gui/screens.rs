@@ -41,6 +41,19 @@ pub struct Screens {
     docker: Option<container::Status>,
     docker_job: Option<Job<container::Status>>,
     confirm_reset: bool,
+    /// ChatGPT sign-in: the last check of the helper, and work in flight.
+    gpt_probe: Option<Result<Vec<String>, String>>,
+    gpt_probe_job: Option<Job<Result<Vec<String>, String>>>,
+    gpt_probe_at: Option<std::time::Instant>,
+    gpt_signin: Option<Job<Result<String, String>>>,
+    gpt_note: Option<(String, bool)>,
+}
+
+impl Screens {
+    /// Open Skills on the Imported tab (used by snapshots).
+    pub(super) fn show_imported(&mut self) {
+        self.tab = SkillsTab::Imported;
+    }
 }
 
 struct RunForm {
@@ -99,6 +112,14 @@ fn tab(ui: &mut egui::Ui, on: bool, label: &str) -> bool {
     let t = RichText::new(label).color(if on { TEXT } else { MUTED }).strong();
     let r = ui.add(egui::Button::new(t).fill(if on { RAISED } else { Color32::TRANSPARENT }).stroke(Stroke::NONE).corner_radius(8));
     r.clicked()
+}
+
+/// A dark tile with the item's first letter, as on the reference's cards.
+fn letter_tile(ui: &mut egui::Ui, name: &str) {
+    let (rect, _) = ui.allocate_exact_size(Vec2::splat(28.0), egui::Sense::hover());
+    ui.painter().rect_filled(rect, 8, RAISED2);
+    let letter = name.chars().find(|c| c.is_alphanumeric()).map(|c| c.to_ascii_uppercase().to_string()).unwrap_or_default();
+    ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, letter, semibold(13.0), TEXT2);
 }
 
 fn chip(ui: &mut egui::Ui, text: &str, color: Color32) {
@@ -191,7 +212,8 @@ impl App {
                             ui.set_width(w - 30.0);
                             ui.set_min_height(118.0);
                             ui.horizontal(|ui| {
-                                ui.label(RichText::new(&s.name).strong());
+                                letter_tile(ui, &s.name);
+                                ui.label(strong(&s.name));
                             });
                             ui.horizontal(|ui| {
                                 chip(ui, &s.category, MUTED);
@@ -627,41 +649,22 @@ impl App {
                 ui.label(small("Keys are encrypted with your passphrase. A key in the environment (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY) wins."));
                 ui.add_space(4.0);
                 for p in PROVIDERS {
+                    ui.add_space(6.0);
                     ui.separator();
+                    ui.add_space(6.0);
+                    if p == "openai" {
+                        self.gpt_settings(ui);
+                        continue;
+                    }
                     ui.horizontal(|ui| {
-                        ui.label(RichText::new(mybot_core::providers::family_label(p)).strong());
+                        ui.label(strong(mybot_core::providers::family_label(p)));
                         match self.engine.key_source(p) {
                             Some("environment") => chip(ui, "key from the environment", GOOD),
                             Some(_) => chip(ui, "key saved", GOOD),
                             None => chip(ui, "no key", MUTED),
                         }
                     });
-                    ui.horizontal(|ui| {
-                        let k = self.screens.keys.entry(p.to_string()).or_default();
-                        ui.add(input(k).password(true).hint_text("Paste an API key").desired_width(380.0));
-                        if ui.add_enabled(!k.trim().is_empty(), accent_button("Save key")).clicked() {
-                            match self.engine.set_key(p, k) {
-                                Ok(()) => {
-                                    zeroize::Zeroize::zeroize(k);
-                                    self.toasts.push(super::Toast { text: format!("Saved the {} key.", mybot_core::providers::family_label(p)), bad: false, at: std::time::Instant::now() });
-                                }
-                                Err(e) => self.toasts.push(super::Toast { text: e, bad: true, at: std::time::Instant::now() }),
-                            }
-                        }
-                        if self.engine.key_source(p) == Some("saved") && ui.add(danger_button("Remove")).clicked()
-                            && let Err(e) = self.engine.remove_key(p) {
-                                self.toasts.push(super::Toast { text: e, bad: true, at: std::time::Instant::now() });
-                            }
-                    });
-                    ui.horizontal(|ui| {
-                        let current = self.engine.base_url(p).unwrap_or_default();
-                        let b = self.screens.bases.entry(p.to_string()).or_insert(current.clone());
-                        ui.label(small("Endpoint"));
-                        ui.add(input(b).hint_text("default").desired_width(320.0));
-                        if *b != current && ui.add(ghost_button("Apply")).clicked() {
-                            let _ = self.engine.db.set_setting(&format!("{p}.base_url"), b.trim());
-                        }
-                    });
+                    self.key_rows(ui, p);
                 }
             });
             ui.add_space(10.0);
@@ -741,6 +744,154 @@ impl App {
     }
 
     // ===================================================================== dialogs
+
+    /// The API-key field (and optional custom endpoint) for one provider.
+    fn key_rows(&mut self, ui: &mut egui::Ui, p: &str) {
+        ui.horizontal(|ui| {
+            let k = self.screens.keys.entry(p.to_string()).or_default();
+            ui.add(input(k).password(true).hint_text("Paste an API key").desired_width(380.0));
+            if ui.add_enabled(!k.trim().is_empty(), accent_button("Save key")).clicked() {
+                match self.engine.set_key(p, k) {
+                    Ok(()) => {
+                        zeroize::Zeroize::zeroize(k);
+                        self.toasts.push(super::Toast { text: format!("Saved the {} key.", mybot_core::providers::family_label(p)), bad: false, at: std::time::Instant::now() });
+                    }
+                    Err(e) => self.toasts.push(super::Toast { text: e, bad: true, at: std::time::Instant::now() }),
+                }
+            }
+            if self.engine.key_source(p) == Some("saved")
+                && ui.add(danger_button("Remove")).clicked()
+                && let Err(e) = self.engine.remove_key(p)
+            {
+                self.toasts.push(super::Toast { text: e, bad: true, at: std::time::Instant::now() });
+            }
+        });
+        ui.horizontal(|ui| {
+            let current = self.engine.base_url(p).unwrap_or_default();
+            let b = self.screens.bases.entry(p.to_string()).or_insert(current.clone());
+            ui.label(small("Endpoint"));
+            ui.add(input(b).hint_text("default").desired_width(320.0));
+            if *b != current && ui.add(ghost_button("Apply")).clicked() {
+                let _ = self.engine.db.set_setting(&format!("{p}.base_url"), b.trim());
+            }
+        });
+    }
+
+    /// GPT: sign in with your ChatGPT account, or use an API key.
+    fn gpt_settings(&mut self, ui: &mut egui::Ui) {
+        use crate::engine::{GptAuth, chatgpt};
+        let ctx = ui.ctx().clone();
+        let auth = self.engine.gpt_auth();
+
+        ui.horizontal(|ui| {
+            ui.label(strong("GPT"));
+            match auth {
+                GptAuth::ChatGpt => match &self.screens.gpt_probe {
+                    Some(Ok(_)) => chip(ui, "signed in with ChatGPT", GOOD),
+                    _ => chip(ui, "ChatGPT · not connected", WARN),
+                },
+                GptAuth::ApiKey => match self.engine.key_source("openai") {
+                    Some("environment") => chip(ui, "key from the environment", GOOD),
+                    Some(_) => chip(ui, "key saved", GOOD),
+                    None => chip(ui, "no key", MUTED),
+                },
+            }
+        });
+        ui.add_space(2.0);
+
+        let mut choice = match auth {
+            GptAuth::ChatGpt => "chatgpt".to_string(),
+            GptAuth::ApiKey => "api_key".to_string(),
+        };
+        let options = [("chatgpt".to_string(), "Sign in with ChatGPT".to_string()), ("api_key".to_string(), "API key".to_string())];
+        super::chat::segmented(ui, &options, &mut choice);
+        let picked = if choice == "chatgpt" { GptAuth::ChatGpt } else { GptAuth::ApiKey };
+        if picked != auth {
+            if let Err(e) = self.engine.set_gpt_auth(picked) {
+                self.toasts.push(super::Toast { text: e, bad: true, at: std::time::Instant::now() });
+            }
+            self.screens.gpt_probe = None;
+            self.screens.gpt_probe_at = None;
+            self.screens.gpt_note = None;
+        }
+        ui.add_space(4.0);
+
+        if picked == GptAuth::ApiKey {
+            ui.label(small("Billed per use to your OpenAI account. A key in OPENAI_API_KEY wins over a saved one."));
+            self.key_rows(ui, "openai");
+            return;
+        }
+
+        // --- ChatGPT sign-in ---
+        if let Some(r) = poll(&mut self.screens.gpt_signin) {
+            self.screens.gpt_note = Some(match r {
+                Ok(out) => (out, false),
+                Err(e) => (e, true),
+            });
+            self.screens.gpt_probe_at = None; // look again now
+        }
+        if let Some(r) = poll(&mut self.screens.gpt_probe_job) {
+            self.screens.gpt_probe = Some(r);
+        }
+        let due = self.screens.gpt_probe_at.is_none_or(|t| t.elapsed() > std::time::Duration::from_secs(5));
+        if due && self.screens.gpt_probe_job.is_none() && self.screens.gpt_signin.is_none() {
+            self.screens.gpt_probe_at = Some(std::time::Instant::now());
+            let engine = self.engine.clone();
+            self.screens.gpt_probe_job = Some(Job::spawn(&self.rt, &ctx, async move {
+                let p = engine.provider("openai").map_err(|e| e.to_string())?;
+                p.list_models().await.map_err(|e| e.to_string())
+            }));
+        }
+        ctx.request_repaint_after(std::time::Duration::from_secs(5));
+
+        let busy = self.screens.gpt_signin.is_some();
+        ui.horizontal(|ui| {
+            if busy {
+                ui.add(egui::Spinner::new().size(12.0).color(ACCENT));
+                ui.label(RichText::new("Waiting for you to finish signing in in your browser…").color(TEXT2));
+                return;
+            }
+            match &self.screens.gpt_probe {
+                Some(Ok(models)) => {
+                    ui.label(RichText::new("●").size(9.0).color(GOOD));
+                    let shown: Vec<&str> = models.iter().map(String::as_str).filter(|m| !m.contains("image")).take(4).collect();
+                    ui.label(RichText::new(format!("Connected · {}", shown.join(", "))).color(TEXT2));
+                }
+                Some(Err(_)) => {
+                    ui.label(RichText::new("●").size(9.0).color(FAINT));
+                    ui.label(RichText::new("Not connected — the sign-in helper isn't running.").color(TEXT2));
+                }
+                None => {
+                    ui.add(egui::Spinner::new().size(12.0).color(MUTED));
+                    ui.label(muted("Checking…"));
+                }
+            }
+        });
+        ui.horizontal(|ui| {
+            let connected = matches!(self.screens.gpt_probe, Some(Ok(_)));
+            if !connected && ui.add_enabled(!busy, accent_button("Sign in with ChatGPT")).clicked() {
+                self.screens.gpt_note = None;
+                self.screens.gpt_signin = Some(Job::blocking(&self.rt, &ctx, chatgpt::start));
+            }
+            if connected && ui.add(ghost_button("Disconnect")).on_hover_text("Stop the sign-in helper. Your ChatGPT login stays saved for next time.").clicked() {
+                self.screens.gpt_signin = Some(Job::blocking(&self.rt, &ctx, chatgpt::stop));
+            }
+            if ui.add_enabled(!busy, ghost_button("Check again")).clicked() {
+                self.screens.gpt_probe_at = None;
+            }
+        });
+        if let Some((note, bad)) = &self.screens.gpt_note {
+            egui::Frame::NONE.fill(egui::Color32::from_rgb(14, 13, 11)).corner_radius(8).inner_margin(egui::Margin::same(8)).show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                ui.add(egui::Label::new(RichText::new(note).monospace().size(11.5).color(if *bad { BAD } else { MUTED })).wrap());
+            });
+        }
+        ui.add(egui::Label::new(small(format!(
+            "Uses your ChatGPT plan — its limits, not API billing. MyBot runs {} (Apache-2.0), a helper on {} that signs you in through OpenAI in your browser and keeps the token in ~/.codex/auth.json. MyBot never sees it. Needs Node.js.",
+            chatgpt::PACKAGE,
+            chatgpt::URL.trim_end_matches("/v1"),
+        ))).wrap());
+    }
 
     pub(super) fn screen_modals(&mut self, ctx: &egui::Context) {
         self.review_modal(ctx);

@@ -22,6 +22,83 @@ use zeroize::Zeroizing;
 
 pub const CONVERSATION: &str = "default";
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GptAuth {
+    /// Your ChatGPT plan, via the openai-oauth helper.
+    ChatGpt,
+    /// An OpenAI API key (billed per use).
+    ApiKey,
+}
+
+/// The ChatGPT sign-in helper: `openai-oauth`, an Apache-2.0 npm package that
+/// runs the OpenAI (Codex) OAuth login in your browser, keeps the token in
+/// `~/.codex/auth.json`, and serves an OpenAI-compatible API on loopback.
+/// MyBot never sees the token; it only talks to the helper.
+pub mod chatgpt {
+    use std::path::PathBuf;
+    use std::process::Command;
+
+    pub const URL: &str = "http://127.0.0.1:10531/v1";
+    /// Pinned: this helper holds a ChatGPT session, so it is not something to
+    /// pull `@latest` of on every start.
+    pub const PACKAGE: &str = "openai-oauth@2.0.0";
+
+    /// `npx`, wherever Node was installed. Apps opened from Finder or the
+    /// Start menu don't get a login shell's PATH, so look where installers put it.
+    fn npx() -> Option<PathBuf> {
+        let name = if cfg!(windows) { "npx.cmd" } else { "npx" };
+        let mut dirs: Vec<PathBuf> = std::env::var_os("PATH").map(|p| std::env::split_paths(&p).collect()).unwrap_or_default();
+        dirs.extend(["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"].map(PathBuf::from));
+        if let Some(home) = dirs::home_dir() {
+            dirs.push(home.join(".volta/bin"));
+            if let Ok(rd) = std::fs::read_dir(home.join(".nvm/versions/node")) {
+                let mut v: Vec<PathBuf> = rd.flatten().map(|e| e.path().join("bin")).collect();
+                v.sort();
+                dirs.extend(v.into_iter().rev());
+            }
+        }
+        if cfg!(windows) {
+            if let Some(pf) = std::env::var_os("ProgramFiles") {
+                dirs.push(PathBuf::from(pf).join("nodejs"));
+            }
+            if let Some(ad) = std::env::var_os("APPDATA") {
+                dirs.push(PathBuf::from(ad).join("npm"));
+            }
+        }
+        dirs.into_iter().map(|d| d.join(name)).find(|p| p.is_file())
+    }
+
+    fn run(args: &[&str]) -> Result<String, String> {
+        let npx = npx().ok_or("Node.js isn't installed (no npx found). Install Node from nodejs.org, then try again.")?;
+        let mut cmd = Command::new(&npx);
+        // Child tools (node itself) must be findable too.
+        if let Some(dir) = npx.parent() {
+            let mut path = vec![dir.to_path_buf()];
+            path.extend(std::env::var_os("PATH").map(|p| std::env::split_paths(&p).collect::<Vec<_>>()).unwrap_or_default());
+            if let Ok(joined) = std::env::join_paths(path) {
+                cmd.env("PATH", joined);
+            }
+        }
+        let out = cmd.arg("--yes").arg(PACKAGE).args(args).output().map_err(|e| format!("Couldn't start the sign-in helper: {e}"))?;
+        let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        // Keep the useful end of it; strip terminal colour codes.
+        let clean: String = regex::Regex::new(r"\x1b\[[0-9;]*[A-Za-z]").map(|re| re.replace_all(&text, "").into_owned()).unwrap_or(text);
+        let tail: Vec<&str> = clean.lines().map(str::trim_end).filter(|l| !l.trim().is_empty()).collect();
+        let tail = tail[tail.len().saturating_sub(6)..].join("\n");
+        if out.status.success() { Ok(tail) } else { Err(if tail.is_empty() { format!("The sign-in helper exited with {}", out.status) } else { tail }) }
+    }
+
+    /// Start the helper in the background. The first time, it opens your
+    /// browser to sign in to ChatGPT and waits (up to five minutes) for that.
+    pub fn start() -> Result<String, String> {
+        run(&["--detach"])
+    }
+
+    pub fn stop() -> Result<String, String> {
+        run(&["stop"])
+    }
+}
+
 /// Where a run's events go (the window's threads, or the terminal), per bot id.
 pub type EventSink = Arc<dyn Fn(&str, AgentEvent) + Send + Sync>;
 
@@ -150,10 +227,38 @@ impl Engine {
         self.db.setting(&format!("{provider}.base_url")).ok().flatten().filter(|s| !s.trim().is_empty())
     }
 
+    /// How GPT authenticates: your ChatGPT sign-in, or an API key.
+    pub fn gpt_auth(&self) -> GptAuth {
+        match self.db.setting("openai.auth").ok().flatten().as_deref() {
+            Some("chatgpt") => GptAuth::ChatGpt,
+            _ => GptAuth::ApiKey,
+        }
+    }
+
+    pub fn set_gpt_auth(&self, auth: GptAuth) -> Result<(), String> {
+        let v = match auth {
+            GptAuth::ChatGpt => "chatgpt",
+            GptAuth::ApiKey => "api_key",
+        };
+        self.db.set_setting("openai.auth", v).map_err(|e| e.to_string())
+    }
+
+    /// Whether a provider can run right now, by whatever means it's set up.
+    pub fn ready(&self, provider: &str) -> bool {
+        (provider == "openai" && self.gpt_auth() == GptAuth::ChatGpt) || self.key_source(provider).is_some() || self.base_url(provider).is_some()
+    }
+
     pub fn provider(&self, name: &str) -> Result<Arc<dyn Provider>, ProviderError> {
+        // ChatGPT sign-in: the local openai-oauth helper holds the account's
+        // OAuth token and speaks the OpenAI API. No key is sent — not even a
+        // saved one, which has no business leaving for a different endpoint.
+        if name == "openai" && self.gpt_auth() == GptAuth::ChatGpt {
+            let base_url = Some(chatgpt::URL.to_string());
+            return Ok(Arc::from(providers::make(name, ProviderConfig { api_key: String::new(), base_url })?));
+        }
         let base_url = self.base_url(name);
         let key = self.keys.resolve(name, self.passphrase().as_deref()).map(|k| k.to_string());
-        // An OpenAI-compatible local proxy (ChatGPT sign-in) needs no key.
+        // An OpenAI-compatible local proxy needs no key.
         let key = match (key, &base_url) {
             (Some(k), _) => k,
             (None, Some(u)) if u.starts_with("http://127.0.0.1") || u.starts_with("http://localhost") => String::new(),

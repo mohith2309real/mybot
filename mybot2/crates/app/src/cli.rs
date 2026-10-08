@@ -106,6 +106,11 @@ pub enum KeysCmd {
     Set { provider: String },
     List,
     Rm { provider: String },
+    /// Use your ChatGPT sign-in for GPT instead of an API key (the first time,
+    /// your browser opens to sign in).
+    Chatgpt,
+    /// Use an OpenAI API key for GPT again.
+    ApiKey,
 }
 
 #[derive(Subcommand)]
@@ -268,8 +273,23 @@ pub fn main(cli: Cli) -> anyhow::Result<()> {
                 }
                 KeysCmd::List => {
                     for p in PROVIDERS {
-                        println!("{:<10} {}", p, engine.key_source(p).unwrap_or("—"));
+                        let how = if p == "openai" && engine.gpt_auth() == crate::engine::GptAuth::ChatGpt { "ChatGPT sign-in" } else { engine.key_source(p).unwrap_or("—") };
+                        println!("{:<10} {}", p, how);
                     }
+                }
+                KeysCmd::Chatgpt => {
+                    println!("Starting the ChatGPT sign-in helper ({})… if this is the first time, finish signing in in your browser.", crate::engine::chatgpt::PACKAGE);
+                    let out = crate::engine::chatgpt::start().map_err(anyhow::Error::msg)?;
+                    engine.set_gpt_auth(crate::engine::GptAuth::ChatGpt).map_err(anyhow::Error::msg)?;
+                    if !out.is_empty() {
+                        println!("{out}");
+                    }
+                    println!("GPT now uses your ChatGPT sign-in.");
+                }
+                KeysCmd::ApiKey => {
+                    engine.set_gpt_auth(crate::engine::GptAuth::ApiKey).map_err(anyhow::Error::msg)?;
+                    let has = engine.key_source("openai").is_some();
+                    println!("GPT now uses an API key.{}", if has { "" } else { " Save one with: mybot2 keys set openai" });
                 }
                 KeysCmd::Rm { provider } => {
                     engine.remove_key(&provider).map_err(anyhow::Error::msg)?;

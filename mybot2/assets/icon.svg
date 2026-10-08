@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="MyBot">
+  <!--
+    A hexagonal shell with a solid core: the container, and the agent inside it.
+    Deliberately not a robot face — a face implies a chatbot, and this thing is a
+    machine you hand work to. Original mark; it borrows the dark/amber register
+    of the product, not anyone's logo.
+  -->
+  <defs>
+    <linearGradient id="core" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F0A868"/>
+      <stop offset="1" stop-color="#D97757"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="114" fill="#171614"/>
+
+  <!-- outer shell: the container the bot lives in -->
+  <path d="M256 92 L404 178 v156 L256 420 108 334 V178 Z"
+        fill="none" stroke="#D97757" stroke-width="26"
+        stroke-linejoin="round" opacity="0.42"/>
+
+  <!-- inner core: the agent itself -->
+  <path d="M256 178 L326 219 v82 l-70 41 -70-41 v-82 Z" fill="url(#core)"/>
+
+  <!-- the tally light: this thing is live -->
+  <circle cx="404" cy="130" r="27" fill="#171614"/>
+  <circle cx="404" cy="130" r="16" fill="#F0A868"/>
+</svg>

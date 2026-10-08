@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- The MyBot mark (icon.svg) on Apple's icon grid: an 824 px tile centred
+       in a 1024 px canvas, so it sits at the same size as other Dock icons. -->
+  <defs>
+    <linearGradient id="core" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F0A868"/>
+      <stop offset="1" stop-color="#D97757"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(100 100) scale(1.609375)">
+    <rect width="512" height="512" rx="114" fill="#171614"/>
+    <path d="M256 92 L404 178 v156 L256 420 108 334 V178 Z" fill="none" stroke="#D97757" stroke-width="26" stroke-linejoin="round" opacity="0.42"/>
+    <path d="M256 178 L326 219 v82 l-70 41 -70-41 v-82 Z" fill="url(#core)"/>
+    <circle cx="404" cy="130" r="27" fill="#171614"/>
+    <circle cx="404" cy="130" r="16" fill="#F0A868"/>
+  </g>
+</svg>
