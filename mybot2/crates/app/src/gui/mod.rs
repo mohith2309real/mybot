@@ -707,6 +707,14 @@ impl eframe::App for App {
         }
     }
 
+    /// Snapshots ignore the mouse: the window flashes up under whatever the
+    /// pointer happens to be hovering, which would otherwise end up in the shot.
+    fn raw_input_hook(&mut self, _ctx: &egui::Context, raw: &mut egui::RawInput) {
+        if self.snapshot.is_some() {
+            raw.events.retain(|e| !matches!(e, egui::Event::PointerMoved(_) | egui::Event::PointerButton { .. } | egui::Event::MouseWheel { .. } | egui::Event::PointerGone));
+        }
+    }
+
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         if self.snapshot.is_some() {
             return;
@@ -749,6 +757,9 @@ pub fn run(engine: Arc<Engine>, rt: tokio::runtime::Handle) -> eframe::Result {
     if std::env::var_os("MYBOT_SNAPSHOT").is_some_and(|v| !v.is_empty()) {
         options.persistence_path = Some(mybot_vault::home().join("snapshot-ui.ron"));
         options.persist_window = false;
+        // It flashes up for a few seconds: don't steal focus from whatever the
+        // person is doing, and let their clicks fall through to it.
+        options.viewport = options.viewport.with_active(false).with_mouse_passthrough(true);
     }
     eframe::run_native("MyBot", options, Box::new(move |cc| Ok(Box::new(App::new(cc, engine, rt)))))
 }
