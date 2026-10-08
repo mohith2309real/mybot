@@ -1,6 +1,5 @@
 // MyBot site: reveal on scroll, play the hand-off, and point the download
-// buttons at the latest release (release.json is that release's signed
-// latest.json, copied here when the site is deployed).
+// buttons at the latest release.
 
 const REPO = "https://github.com/mohith2309real/mybot";
 
@@ -45,8 +44,31 @@ function mine() {
 
 const mb = (n) => `${(n / 1048576).toFixed(n > 10485760 ? 0 : 1)} MB`;
 
-fetch("release.json", { cache: "no-cache" })
-  .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+// The latest release, read live from GitHub so the site never needs
+// redeploying when a release ships. release.json (a snapshot taken at deploy
+// time) is the fallback if the API is unreachable or rate-limited.
+async function latestRelease() {
+  try {
+    const r = await fetch("https://api.github.com/repos/mohith2309real/mybot/releases/latest", { headers: { Accept: "application/vnd.github+json" } });
+    if (!r.ok) throw r.status;
+    const rel = await r.json();
+    const tag = rel.tag_name;
+    const assets = {};
+    for (const a of rel.assets || []) {
+      const m = a.name.match(/^mybot2-v[^-]+-(.+?)\.(tar\.gz|zip)$/);
+      if (!m) continue;
+      assets[m[1]] = { name: a.name, url: a.browser_download_url, size: a.size, sha256: (a.digest || "").replace(/^sha256:/, "") };
+    }
+    if (!Object.keys(assets).length) throw "no assets";
+    return { version: tag.replace(/^v/, ""), tag, assets };
+  } catch {
+    const r = await fetch("release.json", { cache: "no-cache" });
+    if (!r.ok) throw r.status;
+    return r.json();
+  }
+}
+
+latestRelease()
   .then((rel) => {
     const assets = rel.assets || {};
     const tag = rel.tag || `v${rel.version}`;
@@ -76,7 +98,7 @@ fetch("release.json", { cache: "no-cache" })
       cta.href = "#download";
     }
 
-    const sums = Object.values(assets).map((a) => `${a.name}  ${a.sha256}`).join("\n");
+    const sums = Object.values(assets).filter((a) => a.sha256).map((a) => `${a.name}  ${a.sha256}`).join("\n");
     const el = document.getElementById("sums");
     if (el && sums) {
       el.innerText = `SHA-256\n${sums}`;

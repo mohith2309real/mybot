@@ -10,8 +10,11 @@
 # carries latest.json (version, and each download's URL, size and SHA-256) and
 # latest.json.sig, an Ed25519 signature of it made with the
 # MYBOT_UPDATE_SIGNING_KEY secret; the app installs updates only when that
-# signature checks out against the public key compiled into it. Publishing also
-# refreshes the website (site/ → the gh-pages branch).
+# signature checks out against the public key compiled into it.
+#
+# The website (site/, https://mybot2.web.app on Firebase) reads the latest
+# release from GitHub when it loads, so releases need no site deploy; deploy
+# site changes with site/deploy.sh.
 
 name: Release
 
@@ -20,7 +23,7 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
-    paths: ["mybot2/**", "site/**", ".github/workflows/release.yml"]
+    paths: ["mybot2/**", ".github/workflows/release.yml"]
   workflow_dispatch:
     inputs:
       tag:
@@ -263,6 +266,3 @@ jobs:
           else
             gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "MyBot ${TAG#v}" --notes-file mybot2/RELEASE_NOTES.md
           fi
-
-      - name: Refresh the website
-        run: site/deploy.sh
