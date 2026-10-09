@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MyBot — AI teammates with their own computers</title>
 <meta name="description" content="A free desktop app for Mac, Windows and Linux. Message an AI teammate like a colleague: it works in its own browser and desktop, stops for you at passwords and 2-step codes, and asks before anything that matters. Runs on your Claude, GPT or Gemini.">
-<meta name="theme-color" content="#0c0b09">
+<meta name="theme-color" content="#000000">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://mybot2.web.app/">
@@ -14,20 +14,17 @@
 <meta property="og:description" content="Message one like a colleague. It works in its own browser, and stops for you at passwords, 2-step codes and anything that matters.">
 <meta property="og:image" content="https://mybot2.web.app/og.jpg">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="preload" href="fonts/selawkl.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <header class="nav">
-  <a class="brand" href="#top" aria-label="MyBot home">
-    <img src="icon.svg" alt="" width="28" height="28">
-    <span>MyBot</span>
-  </a>
+  <a class="brand" href="#top" aria-label="MyBot home"><img src="wordmark.svg" alt="MyBot" width="96" height="31"></a>
   <nav>
-    <a href="#how">How it works</a>
-    <a href="#features">Features</a>
-    <a href="#download">Download</a>
-    <a class="gh" href="https://github.com/mohith2309real/mybot">GitHub</a>
+    <a href="#faces">Faces</a>
+    <a href="#computer">Computer</a>
+    <a class="pill" href="#download">Download</a>
   </nav>
 </header>
 
@@ -35,122 +32,87 @@
 
   <!-- ── hero ─────────────────────────────────────────────────────────── -->
   <section class="hero">
-    <div class="hero-copy reveal">
-      <p class="eyebrow"><span class="dot"></span><span data-release="label">MyBot 2 · free and open source</span></p>
-      <h1>AI teammates with<br>their own computers.</h1>
-      <p class="lede">Message one like a colleague. It works in its own browser while you watch — and stops for you at passwords, 2-step codes and anything that matters.</p>
-      <div class="cta">
-        <a class="btn primary" id="cta" href="https://github.com/mohith2309real/mybot/releases/latest">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19.5h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span id="cta-label">Download MyBot</span>
-        </a>
-        <a class="btn ghost" href="#download">All platforms</a>
-      </div>
-      <p class="fine" id="cta-fine">Mac · Windows · Linux. Bring your own Claude, GPT or Gemini.</p>
+    <p class="eyebrow reveal" data-release="label">MyBot 2 · free</p>
+    <h1 class="reveal">AI teammates<br>with their own computers.</h1>
+    <p class="lede reveal">Message one like a colleague. It works in its own browser while you watch, and stops for you at passwords, 2-step codes and anything that matters.</p>
+    <div class="cta reveal">
+      <a class="btn primary" id="cta" href="#download">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19.5h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span id="cta-label">Download MyBot</span>
+      </a>
+      <a class="btn ghost" href="#download">All platforms</a>
     </div>
+    <p class="fine reveal" id="cta-fine">Mac · Windows · Linux. Bring your own Claude, GPT or Gemini.</p>
 
-    <!-- The real app, and the moment that sets it apart: it stops for you. -->
-    <div class="stage reveal" aria-label="MyBot's window: a teammate stops at a 2-step code and waits for you">
-      <div class="glow" aria-hidden="true"></div>
-      <figure class="window">
-        <div class="titlebar"><i></i><i></i><i></i><span>MyBot</span></div>
-        <img src="shots/conversation.png" alt="MyBot: a roster of teammates on the left, a conversation with Researcher in the middle" width="1440" height="910">
-      </figure>
-      <div class="handoff" aria-hidden="true">
-        <div class="step s1"><b></b>Opened <em>github.com/login</em></div>
-        <div class="step s2"><b></b>Signed in with a saved login</div>
-        <div class="banner">
-          <div class="who"><span class="tile">RE</span>Researcher needs you</div>
-          <p>GitHub is asking for a 2-step code. Type it into the page, then hand back.</p>
-          <div class="actions"><span class="press">I'm done, continue</span><span class="skip">Skip this step</span></div>
-        </div>
-        <div class="step s3 done"><b></b>Opened <em>github.com/notifications</em></div>
-        <div class="reply">You have 4 notifications that need you.</div>
-      </div>
+    <!-- A roster at work: each face is drawn live, the same way the app draws it. -->
+    <div class="crew reveal" aria-label="Eight teammates' faces, animated">
+      <canvas data-face="0" data-mood="working"></canvas>
+      <canvas data-face="2" data-mood="idle"></canvas>
+      <canvas data-face="3" data-mood="working"></canvas>
+      <canvas data-face="1" data-mood="needs"></canvas>
+      <canvas data-face="4" data-mood="working"></canvas>
+      <canvas data-face="5" data-mood="done"></canvas>
+      <canvas data-face="6" data-mood="working"></canvas>
+      <canvas data-face="7" data-mood="idle"></canvas>
     </div>
   </section>
 
-  <!-- ── models strip ─────────────────────────────────────────────────── -->
-  <section class="strip reveal" aria-label="Models">
-    <span>Runs on</span>
-    <b>Claude</b><i>·</i><b>GPT</b><small>API key or ChatGPT sign-in</small><i>·</i><b>Gemini</b>
-    <span class="sep"></span>
-    <span>249 actions</span><i>·</i><span>245 skills</span><i>·</i><span>300 known sites</span>
-  </section>
-
-  <!-- ── how it works ─────────────────────────────────────────────────── -->
-  <section class="how" id="how">
-    <h2 class="reveal">Hand it a job. Watch it work. Step in when it asks.</h2>
-    <ol>
-      <li class="reveal"><span class="n">1</span><h3>Message a teammate</h3><p>“Check my GitHub notifications and summarise what needs me.” Each teammate has its own model, effort level and persona.</p></li>
-      <li class="reveal"><span class="n">2</span><h3>It uses its own computer</h3><p>A real desktop and browser in Docker. You watch it live, and you can take its mouse and keyboard at any time.</p></li>
-      <li class="reveal"><span class="n">3</span><h3>It stops for you</h3><p>CAPTCHAs, 2-step codes, card fields and checkout always wait for a person. Do the step, then <em>I'm done, continue</em>.</p></li>
-    </ol>
-  </section>
+  <figure class="window reveal">
+    <div class="titlebar"><i></i><i></i><i></i></div>
+    <img src="shots/conversation.png" alt="MyBot: a roster of teammates with their faces on the left, a conversation with Researcher in the middle" width="1440" height="910">
+  </figure>
 
   <!-- ── features ─────────────────────────────────────────────────────── -->
-  <section class="features" id="features">
-    <article class="feature reveal">
-      <div class="text">
-        <p class="kicker">Hand-offs</p>
-        <h2>It knows when to stop.</h2>
-        <p>When a teammate hits something only you should do, it parks and tells you why — in the conversation and right inside its computer. You do the step; one click hands it back.</p>
-        <ul class="ticks">
-          <li>Sending, posting, buying, paying and deleting wait for your OK</li>
-          <li>Unless your request already said to do it</li>
-          <li>Destructive shell commands are refused in every mode</li>
-        </ul>
-      </div>
-      <figure class="shot"><img loading="lazy" src="shots/needs-you.png" alt="A teammate waiting for a 2-step code, with I'm done, continue and Skip this step" width="1440" height="910"></figure>
-    </article>
-
-    <article class="feature flip reveal">
-      <div class="text">
-        <p class="kicker">Saved logins</p>
-        <h2>Your passwords never reach the AI.</h2>
-        <p>Save a login once. When a teammate needs it, you get a request — <em>Allow once</em>, <em>Always for this site</em>, or <em>Deny</em>. MyBot types the password into the page itself, and only on the site it was saved for.</p>
-      </div>
-      <figure class="shot"><img loading="lazy" src="shots/sign-in-request.png" alt="A sign-in request: Researcher wants to sign in to GitHub" width="1440" height="910"></figure>
-    </article>
-
-    <article class="feature reveal">
-      <div class="text">
-        <p class="kicker">Skills</p>
-        <h2>Teach it once.</h2>
-        <p>Do a task yourself in its browser and it becomes a skill it can repeat — passwords and codes are never recorded. 245 skills come built in, and skills in the Agent Skills format (<code>SKILL.md</code>) import and export.</p>
-      </div>
-      <figure class="shot"><img loading="lazy" src="shots/skills.png" alt="The skills library: 245 built-in skills by category" width="1440" height="910"></figure>
-    </article>
-
-    <article class="feature flip reveal">
-      <div class="text">
-        <p class="kicker">Routines</p>
-        <h2>On a schedule.</h2>
-        <p>Every morning at 8, weekdays at 9, the first of the month — or any cron expression. A teammate runs the skill and leaves the result in its conversation.</p>
-      </div>
-      <figure class="shot"><img loading="lazy" src="shots/routines.png" alt="Routines: Summarize a web page every day at 08:00" width="1440" height="910"></figure>
-    </article>
-
-    <article class="feature reveal">
-      <div class="text">
-        <p class="kicker">Your models</p>
-        <h2>Bring Claude, GPT or Gemini.</h2>
-        <p>Keys stay on your computer, encrypted with your passphrase. For GPT, use an API key — or sign in with your ChatGPT account and run on your plan.</p>
-        <p class="note">ChatGPT sign-in runs the open-source <code>openai-oauth</code> helper and needs Node.js.</p>
-      </div>
-      <figure class="shot"><img loading="lazy" src="shots/settings.png" alt="Settings: GPT signed in with ChatGPT; Claude and Gemini with API keys" width="1440" height="910"></figure>
-    </article>
+  <section class="feature reveal">
+    <div class="text">
+      <h2>It stops for you.</h2>
+      <p>CAPTCHAs, 2-step codes, card fields and checkout always wait for a person. It parks, says why, and shows the step right inside its computer. Do it, then <em>I'm done, continue</em>.</p>
+      <p class="quiet">Sending, posting, buying, paying and deleting wait for your OK too, unless your request already said to do it.</p>
+    </div>
+    <figure class="shot"><img loading="lazy" src="shots/needs-you.png" alt="Researcher needs you: the bank wants a 6-digit code, with I'm done, continue and Skip this step" width="1440" height="910"></figure>
   </section>
 
-  <!-- ── updates ──────────────────────────────────────────────────────── -->
+  <section class="feature flip reveal">
+    <div class="text">
+      <h2>Your passwords never reach the AI.</h2>
+      <p>Save a login once. When a teammate needs it, you decide: <em>Allow once</em>, <em>Always for this site</em>, or <em>Deny</em>. MyBot types the password into the page itself, and only on the site it was saved for.</p>
+    </div>
+    <figure class="shot"><img loading="lazy" src="shots/sign-in-request.png" alt="A sign-in request: Researcher wants to sign in to the bank, with Allow once, Always for this site and Deny" width="1440" height="910"></figure>
+  </section>
+
+  <!-- ── faces ────────────────────────────────────────────────────────── -->
+  <section class="faces" id="faces">
+    <h2 class="reveal">A face for every teammate.</h2>
+    <p class="sub reveal">Eight to pick from. Each one shows what it's doing, in its own way: reading, typing, thinking. Wide-eyed when it needs you; ^ ^ when it's done. Tap one to change its mood.</p>
+    <div class="face-grid reveal" id="face-grid"></div>
+  </section>
+
+  <!-- ── computer ─────────────────────────────────────────────────────── -->
+  <section class="computer" id="computer">
+    <div class="text reveal">
+      <h2>Its own computer.</h2>
+      <p>A real desktop and browser in Docker, one per teammate. Watch it live, and take its mouse and keyboard whenever you like. It even has its own wallpaper.</p>
+      <a class="link" href="mybot-wallpaper-4k.jpg" download>Get the wallpaper · 4K</a>
+    </div>
+    <figure class="screen reveal"><img loading="lazy" src="shots/teammate-desktop.png" alt="A teammate's desktop: a black wallpaper that says shhh... let's not leak our hard work" width="1440" height="900"></figure>
+  </section>
+
+  <section class="feature reveal">
+    <div class="text">
+      <h2>Teach it once.</h2>
+      <p>Do a task yourself in its browser and it becomes a skill it can repeat. Passwords and codes are never recorded. 245 skills are built in, and routines run them on a schedule: every morning at 8, weekdays at 9, the first of the month.</p>
+    </div>
+    <figure class="shot"><img loading="lazy" src="shots/skills.png" alt="The skills library: 245 built-in skills by category" width="1440" height="910"></figure>
+  </section>
+
+  <section class="strip reveal" aria-label="Models">
+    <p><span>Runs on</span> Claude <i>·</i> GPT <small>API key or ChatGPT sign-in</small> <i>·</i> Gemini</p>
+    <p class="nums"><span>249</span> actions <i>·</i> <span>245</span> skills <i>·</i> <span>300</span> known sites</p>
+  </section>
+
   <section class="updates reveal">
-    <div class="seal" aria-hidden="true">
-      <svg viewBox="0 0 48 48"><path d="M24 4 41 14v20L24 44 7 34V14Z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/><path d="m16.5 24.5 5 5 10-11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </div>
-    <div>
-      <h2>Updates itself — and checks first.</h2>
-      <p>Every release is signed. MyBot checks the signature against its built-in key, and the download against the signed checksum, before it installs anything. Then it's one click: <em>Restart</em>.</p>
-    </div>
+    <h2>Updates itself, and checks first.</h2>
+    <p>Every release is signed. MyBot checks the signature against its built-in key, and the download against the signed checksum, before it installs anything. Then it's one click: <em>Restart</em>.</p>
   </section>
 
   <!-- ── download ─────────────────────────────────────────────────────── -->
@@ -158,23 +120,13 @@
     <h2 class="reveal">Download MyBot</h2>
     <p class="sub reveal"><span data-release="version">The latest release</span> · free · Apache-2.0</p>
     <div class="cards">
-      <a class="card reveal" data-asset="macos-arm64" href="https://github.com/mohith2309real/mybot/releases/latest">
-        <span class="os">macOS</span><span class="for">Apple silicon (M1 and later)</span><span class="meta">.tar.gz</span>
-      </a>
-      <a class="card reveal" data-asset="macos-x86_64" href="https://github.com/mohith2309real/mybot/releases/latest">
-        <span class="os">macOS</span><span class="for">Intel</span><span class="meta">.tar.gz</span>
-      </a>
-      <a class="card reveal" data-asset="windows-x86_64" href="https://github.com/mohith2309real/mybot/releases/latest">
-        <span class="os">Windows</span><span class="for">64-bit</span><span class="meta">.zip</span>
-      </a>
-      <a class="card reveal" data-asset="linux-x86_64" href="https://github.com/mohith2309real/mybot/releases/latest">
-        <span class="os">Linux</span><span class="for">64-bit</span><span class="meta">.tar.gz</span>
-      </a>
+      <a class="card reveal" data-asset="macos-arm64" href="#download"><span class="os">macOS</span><span class="for">Apple silicon (M1 and later)</span><span class="meta">.tar.gz</span></a>
+      <a class="card reveal" data-asset="macos-x86_64" href="#download"><span class="os">macOS</span><span class="for">Intel</span><span class="meta">.tar.gz</span></a>
+      <a class="card reveal" data-asset="windows-x86_64" href="#download"><span class="os">Windows</span><span class="for">64-bit</span><span class="meta">.zip</span></a>
+      <a class="card reveal" data-asset="linux-x86_64" href="#download"><span class="os">Linux</span><span class="for">64-bit</span><span class="meta">.tar.gz</span></a>
     </div>
 
-    <div class="needs reveal">
-      <p><b>You also need Docker.</b> It runs each teammate's computer: Docker Desktop on Mac or Windows, Docker Engine on Linux.</p>
-    </div>
+    <p class="needs reveal"><b>You also need Docker.</b> It runs each teammate's computer: Docker Desktop on Mac or Windows, Docker Engine on Linux.</p>
 
     <div class="first reveal">
       <h3>Opening it the first time</h3>
@@ -188,13 +140,8 @@
 </main>
 
 <footer>
-  <div class="foot-brand"><img src="icon.svg" alt="" width="22" height="22"> MyBot</div>
-  <p>Free and open source under Apache-2.0. Made by Mohith.</p>
-  <nav>
-    <a href="https://github.com/mohith2309real/mybot">Source</a>
-    <a href="https://github.com/mohith2309real/mybot/releases">Releases</a>
-    <a href="https://github.com/mohith2309real/mybot/blob/main/mybot2/README.md">Guide</a>
-  </nav>
+  <img src="wordmark.svg" alt="MyBot" width="74" height="24">
+  <p>Free and open source. Made by Mohith.</p>
 </footer>
 
 <script src="site.js" defer></script>

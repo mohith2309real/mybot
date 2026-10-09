@@ -78,6 +78,8 @@ hand on Linux. Windows and macOS builds come from the release workflow
 | **When it needs you.** The step waits in the conversation and inside its computer: hand back with *I'm done, continue*, or *Skip this step*. For confirmations, *Approve* or *Decline*. | **The agent computer.** Its desktop, live. *Take over* gives you its mouse and keyboard. *Teach a task* records you doing something once. |
 | ![Sign-in request](docs/screenshots/sign-in-request.png) | ![Skills](docs/screenshots/skills.png) |
 | **A sign-in request.** Allow once, always for this site, or deny. Silence counts as no. | **Skills.** 245 built in, your own, ones you taught, and imported Agent Skills. |
+| ![Faces](docs/screenshots/faces.png) | ![A teammate's desktop](docs/screenshots/teammate-desktop.png) |
+| **Faces.** Every teammate is one of eight faces (pick one when you create or edit it). The face shows what it's doing: reading, typing, thinking or scanning while it works; wide-eyed when it needs you; ^ ^ when it's done. The app icon is the face *Glance*. | **Its desktop.** Each teammate's computer starts on the MyBot wallpaper, with a dark panel. |
 
 More screenshots: [imported skills](docs/screenshots/imported.png),
 [routines](docs/screenshots/routines.png), [saved logins](docs/screenshots/logins.png),

@@ -1,13 +1,13 @@
-MyBot 2.1 is a new look, a second way to run GPT, and updates that install themselves. Website: https://mybot2.web.app
+MyBot 2.2 is a new look: black and white, a face for every teammate, and a wallpaper for every teammate's computer. Website: https://mybot2.web.app
 
 ## What's new
 
-- **A new look.** The roster gives every teammate its own colour tile, a role chip, the time and what it last said. The window uses your system's own font, MyBot's warm dark palette and its hexagon mark — now also the app icon on Mac and Windows.
-- **Hand-offs inside the computer.** When a teammate stops for you, the instruction stays on screen inside its computer, with **I'm done, continue** and **Skip this step** right there. While you teach a task, the screen gets a red frame.
-- **GPT: sign in with ChatGPT, or use an API key.** Settings → AI providers → GPT. ChatGPT sign-in runs on your ChatGPT plan through the open-source `openai-oauth` helper (pinned to 2.0.0; needs Node.js). It signs you in through OpenAI in your browser and keeps the token in `~/.codex/auth.json`; MyBot never sees it. From the command line: `mybot2 keys chatgpt` or `mybot2 keys api-key`.
-- **Updates over the air.** MyBot checks for a new release a few seconds after it opens and every six hours, downloads it in the background, and shows **Restart** when it's ready. Every release is signed: MyBot checks the signature against its built-in key, and the download against the signed checksum, before installing anything. Turn it off in Settings → About, or update from the command line with `mybot2 update`.
+- **Monochrome.** True greys on black, with white as the one accent. Colour is kept for meaning only: red while you teach a task and on buttons that delete.
+- **A face for every teammate.** Eight to pick from when you create or edit a teammate: Pip, Glance, Bean, Brick, Leaf, Ghost, Moon and Blob. The face shows what the teammate is doing, and each one moves in its own ways. While it works, it reads, types, thinks, scans or hums. When it needs you, it goes wide-eyed and bounces, wiggles or pulses. When it's done, ^ ^ with a hop, a sway or a sparkle. Idle faces blink and now and then glance aside, breathe or doze. Faces only animate while something is happening.
+- **A new icon and wordmark.** The app icon is the face *Glance*; the sidebar shows the MyBot wordmark.
+- **A wallpaper for its computer.** Every teammate's desktop starts on the MyBot wallpaper ("shhh... let's not leak our hard work"), with a dark panel. The desktop image is rebuilt once, automatically, the first time a computer starts (it's now `mybot-desktop:0.3`). The 4K wallpaper is on the website.
 
-**Coming from 2.0.0?** Install 2.1 by hand once (2.0.0 can't update itself). From 2.1 on, updates install themselves.
+Updating from 2.1 happens by itself: **Restart** when MyBot says it's ready.
 
 ## Download
 
@@ -20,7 +20,7 @@ MyBot 2.1 is a new look, a second way to run GPT, and updates that install thems
 
 Each file has a `.sha256` next to it. `latest.json` and `latest.json.sig` are what the app reads to update itself.
 
-**You also need Docker.** It runs each teammate's computer: install Docker Desktop on Windows or Mac, Docker Engine on Linux. Then bring an API key for Claude, OpenAI or Gemini — or sign in with ChatGPT.
+**You also need Docker.** It runs each teammate's computer: install Docker Desktop on Windows or Mac, Docker Engine on Linux. Then bring an API key for Claude, OpenAI or Gemini, or sign in with ChatGPT.
 
 ### Opening it the first time
 
@@ -37,15 +37,15 @@ The same file is also the command line: `mybot2 --help`.
 - **A teammate per job,** each with its own model (Claude, GPT or Gemini), effort level and persona.
 - **Its own computer:** a desktop and browser in Docker. Watch it live; take over its mouse and keyboard any time.
 - **It asks before things that matter.** Sending, posting, buying, paying, deleting, changing access and accepting terms wait for you, unless your request already said to do it. CAPTCHAs, 2-step codes, card fields and checkout always stop for you. Destructive commands are refused.
-- **Saved logins.** You approve each use (or "always for this site"); MyBot types the password itself, only on the site it was saved for. Shared with MyBot 1.x.
+- **Saved logins.** You approve each use (or "always for this site"); MyBot types the password itself, only on the site it was saved for.
 - **Skills:** 245 built in plus your own; Agent Skills (`SKILL.md`) import and export. **Teach a task** by doing it once. **Routines** run skills on a schedule.
-- **249 actions and 300 known sites.**
+- **GPT** with an API key or your ChatGPT sign-in. **Signed updates** that install themselves.
 
-Full guide: [mybot2/README.md](https://github.com/mohith2309real/mybot/blob/v2.1.0/mybot2/README.md).
+Full guide: [mybot2/README.md](https://github.com/mohith2309real/mybot/blob/v2.2.0/mybot2/README.md).
 
 ## Known limits
 
-- **Hand-tested on Linux and macOS, not yet on Windows.** The new window was run and checked on macOS (Apple silicon); ChatGPT sign-in and self-updating were tried end to end there too. Windows is built and smoke-tested by this release's automation.
-- **The Docker computer and live view haven't been tried end to end against a real Docker desktop.**
+- **Hand-tested on macOS, not yet on Windows.** The new window, faces and icon were run and checked on macOS (Apple silicon); the new desktop image was built and a teammate desktop started in Docker there. Windows and Linux are built and smoke-tested by this release's automation.
+- **The app's live view of a teammate's computer hasn't been tried end to end against Docker yet.**
 - **Teach a task records one tab:** the one open when you press Record.
 - **Routines run only while the app is open,** or while `mybot2 routines watch` runs.
