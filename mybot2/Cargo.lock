@@ -2306,7 +2306,7 @@ dependencies = [
 
 [[package]]
 name = "mybot-actions"
-version = "2.1.0"
+version = "2.2.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -2337,7 +2337,7 @@ dependencies = [
 
 [[package]]
 name = "mybot-app"
-version = "2.1.0"
+version = "2.2.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2370,7 +2370,7 @@ dependencies = [
 
 [[package]]
 name = "mybot-catalog"
-version = "2.1.0"
+version = "2.2.0"
 dependencies = [
  "hex",
  "once_cell",
@@ -2386,7 +2386,7 @@ dependencies = [
 
 [[package]]
 name = "mybot-computer"
-version = "2.1.0"
+version = "2.2.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2410,7 +2410,7 @@ dependencies = [
 
 [[package]]
 name = "mybot-core"
-version = "2.1.0"
+version = "2.2.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2431,7 +2431,7 @@ dependencies = [
 
 [[package]]
 name = "mybot-vault"
-version = "2.1.0"
+version = "2.2.0"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",

@@ -11,6 +11,11 @@
 //! the data shows on any view. `MYBOT_SNAPSHOT_BOT=<name>` picks the
 //! conversation. Inert unless `MYBOT_SNAPSHOT` is set. Pair it with a
 //! throwaway `MYBOT_HOME` so it never shows your real data.
+//!
+//! `faces` draws every face in every mood. With `MYBOT_SNAPSHOT_FRAMES=n` the
+//! snapshot is n frames at 30 fps on the faces' own clock, piped to `ffmpeg`
+//! (needed on PATH) as an .mp4; `MYBOT_SNAPSHOT_CROP=x,y,w,h` (pixels) trims
+//! either kind.
 
 use std::path::PathBuf;
 
@@ -20,6 +25,12 @@ pub struct Snapshot {
     pub bot: Option<String>,
     frames: u32,
     requested: bool,
+    /// Frames to record (1: a still), how many so far, when to ask for the next.
+    total: u32,
+    captured: u32,
+    next_at: u32,
+    crop: Option<[usize; 4]>,
+    encoder: Option<std::process::Child>,
 }
 
 impl Snapshot {
@@ -31,6 +42,19 @@ impl Snapshot {
             bot: std::env::var("MYBOT_SNAPSHOT_BOT").ok().filter(|b| !b.is_empty()),
             frames: 0,
             requested: false,
+            total: std::env::var("MYBOT_SNAPSHOT_FRAMES").ok().and_then(|n| n.parse().ok()).unwrap_or(1).max(1),
+            captured: 0,
+            next_at: 40,
+            crop: std::env::var("MYBOT_SNAPSHOT_CROP").ok().and_then(|c| {
+                let v: Vec<usize> = c.split(',').filter_map(|x| x.trim().parse().ok()).collect();
+                (v.len() == 4).then(|| [v[0], v[1], v[2], v[3]])
+            }),
+            encoder: None,
+        })
+        .inspect(|s| {
+            if s.total > 1 {
+                super::theme::set_face_clock(Some(0.0));
+            }
         })
     }
 
@@ -38,8 +62,9 @@ impl Snapshot {
     pub fn tick(&mut self, ctx: &egui::Context) -> bool {
         self.frames += 1;
         ctx.request_repaint();
-        // Enough frames for fonts, layout and the first job polls to settle.
-        if !self.requested && self.frames >= 40 {
+        // Enough frames for fonts, layout and the first job polls to settle;
+        // in a sequence, two more after each frame for the next pose to draw.
+        if !self.requested && self.frames >= self.next_at {
             self.requested = true;
             ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(Default::default()));
         }
@@ -50,15 +75,55 @@ impl Snapshot {
             })
         });
         let Some(image) = shot else { return false };
-        let [w, h] = image.size;
+        let [iw, ih] = image.size;
+        let [x0, y0, w, h] = self.crop.map(|[x, y, w, h]| [x.min(iw), y.min(ih), w.min(iw - x.min(iw)), h.min(ih - y.min(ih))]).unwrap_or([0, 0, iw, ih]);
         let mut rgba = Vec::with_capacity(w * h * 4);
-        for p in &image.pixels {
-            rgba.extend_from_slice(&p.to_srgba_unmultiplied());
+        for y in y0..y0 + h {
+            for p in &image.pixels[y * iw + x0..y * iw + x0 + w] {
+                rgba.extend_from_slice(&p.to_srgba_unmultiplied());
+            }
         }
-        match std::fs::write(&self.path, png(w as u32, h as u32, &rgba)) {
-            Ok(()) => eprintln!("snapshot: wrote {} ({w}×{h})", self.path.display()),
-            Err(e) => eprintln!("snapshot: could not write {}: {e}", self.path.display()),
+        if self.total == 1 {
+            match std::fs::write(&self.path, png(w as u32, h as u32, &rgba)) {
+                Ok(()) => eprintln!("snapshot: wrote {} ({w}×{h})", self.path.display()),
+                Err(e) => eprintln!("snapshot: could not write {}: {e}", self.path.display()),
+            }
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            return true;
         }
+        if self.encoder.is_none() {
+            let size = format!("{w}x{h}");
+            let child = std::process::Command::new("ffmpeg")
+                .args(["-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", &size, "-r", "30", "-i", "-"])
+                .args(["-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "16", "-movflags", "+faststart"])
+                .arg(&self.path)
+                .stdin(std::process::Stdio::piped())
+                .spawn();
+            match child {
+                Ok(c) => self.encoder = Some(c),
+                Err(e) => {
+                    eprintln!("snapshot: could not start ffmpeg: {e}");
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    return true;
+                }
+            }
+        }
+        if let Some(stdin) = self.encoder.as_mut().and_then(|c| c.stdin.as_mut()) {
+            use std::io::Write;
+            let _ = stdin.write_all(&rgba);
+        }
+        self.captured += 1;
+        super::theme::set_face_clock(Some(self.captured as f64 / 30.0));
+        if self.captured < self.total {
+            self.requested = false;
+            self.next_at = self.frames + 2;
+            return false;
+        }
+        if let Some(mut c) = self.encoder.take() {
+            drop(c.stdin.take());
+            let _ = c.wait();
+        }
+        eprintln!("snapshot: wrote {} ({} frames, {w}×{h})", self.path.display(), self.total);
         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         true
     }

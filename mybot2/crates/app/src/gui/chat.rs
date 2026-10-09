@@ -35,6 +35,8 @@ pub struct BotForm {
     pub models_job: Option<Job<Result<Vec<String>, String>>>,
     pub models_for: String,
     pub error: Option<String>,
+    /// The face picked here; None follows the name.
+    pub face: Option<usize>,
 }
 
 impl BotForm {
@@ -51,6 +53,7 @@ impl BotForm {
             models_job: None,
             models_for: String::new(),
             error: None,
+            face: Some(face_of(&b.name)),
         }
     }
 }
@@ -71,6 +74,7 @@ impl ChatState {
             models_job: None,
             models_for: String::new(),
             error: None,
+            face: None,
         });
     }
 }
@@ -146,8 +150,9 @@ impl App {
         let width = ui.available_width();
         let narrow = width < 560.0;
         let live = self.computer.view.as_ref().is_some_and(|v| v.is_connected()) && self.computer.bot.as_deref() == Some(bot.name.as_str());
+        let mood = self.threads.with(&bot.id, |t| if t.waiting.is_some() { Mood::NeedsYou } else if t.working { Mood::Working } else { Mood::Idle });
         ui.horizontal(|ui| {
-            avatar(ui, &bot.name, 34.0, None);
+            avatar(ui, &bot.name, 34.0, mood);
             ui.add_space(2.0);
             ui.vertical(|ui| {
                 ui.spacing_mut().item_spacing = Vec2::new(6.0, 1.0);
@@ -230,7 +235,7 @@ impl App {
     fn empty_thread(&mut self, ui: &mut egui::Ui, bot: &Bot) {
         ui.add_space(48.0);
         ui.vertical_centered(|ui| {
-            avatar(ui, &bot.name, 60.0, None);
+            avatar(ui, &bot.name, 60.0, Mood::Idle);
             ui.add_space(10.0);
             ui.label(RichText::new(format!("What should {} do?", bot.name)).font(semibold(20.0)).color(TEXT));
             ui.label(muted("It works in its own browser. Open the agent computer to watch, or take over."));
@@ -322,7 +327,7 @@ impl App {
         egui::Frame::NONE.fill(ACCENT_WASH).stroke(Stroke::new(1.0, ACCENT_EDGE)).corner_radius(16).inner_margin(Margin::symmetric(14, 12)).show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.horizontal(|ui| {
-                avatar(ui, &bot.name, 22.0, None);
+                avatar(ui, &bot.name, 22.0, Mood::NeedsYou);
                 ui.label(RichText::new(if pause.confirm { format!("{} needs your OK", bot.name) } else { format!("{} needs you", bot.name) }).font(semibold(14.0)).color(ACCENT));
             });
             ui.add(egui::Label::new(RichText::new(&pause.reason).color(TEXT)).wrap());
@@ -545,7 +550,7 @@ impl App {
             ui.spacing_mut().item_spacing.y = 6.0;
             ui.horizontal(|ui| {
                 let shown = if f.name.trim().is_empty() { "?" } else { f.name.trim() };
-                avatar(ui, shown, 40.0, None);
+                face_preview(ui, shown, f.face, 40.0, Mood::Idle);
                 ui.vertical(|ui| {
                     ui.spacing_mut().item_spacing.y = 0.0;
                     ui.label(heading(if editing { "Edit teammate" } else { "New teammate" }));
@@ -556,6 +561,26 @@ impl App {
 
             field(ui, "Name");
             ui.add(input(&mut f.name).hint_text("e.g. Researcher, Ops, Shopper").desired_width(f32::INFINITY));
+
+            field(ui, "Face");
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 6.0;
+                let current = f.face.unwrap_or_else(|| face_of(f.name.trim()));
+                for (i, face) in FACES.iter().enumerate() {
+                    let (rect, resp) = ui.allocate_exact_size(Vec2::splat(42.0), egui::Sense::click());
+                    let p = ui.painter();
+                    if i == current {
+                        p.rect_filled(rect, 10, RAISED2);
+                        p.rect_stroke(rect, 10, Stroke::new(1.0, ACCENT_EDGE), egui::StrokeKind::Inside);
+                    } else if resp.hovered() {
+                        p.rect_filled(rect, 10, RAISED);
+                    }
+                    paint_face(p, rect.shrink(7.0), i, if resp.hovered() { Mood::Done } else { Mood::Idle }, TEXT, i as f64);
+                    if resp.on_hover_text(face.name).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                        f.face = Some(i);
+                    }
+                }
+            });
 
             field(ui, "Provider");
             let options: Vec<(String, String)> = PROVIDERS
@@ -653,8 +678,13 @@ impl App {
                     self.engine.db.update_bot(&b).map_err(|e| e.to_string()).map(|_| b)
                 }),
             };
+            let face = f.face;
             match result {
                 Ok(b) => {
+                    if let Some(i) = face {
+                        set_face(&b.name, i);
+                        let _ = self.engine.db.set_setting(&face_key(&b.name), &i.to_string());
+                    }
                     self.chat.bot_form = None;
                     self.reload_bots();
                     self.open_chat(&b.id);
@@ -801,7 +831,7 @@ fn markdownish(ui: &mut egui::Ui, text: &str) {
     for line in text.lines() {
         if line.trim_start().starts_with("```") {
             if in_code {
-                egui::Frame::NONE.fill(egui::Color32::from_rgb(10, 10, 12)).corner_radius(8).inner_margin(Margin::same(10)).show(ui, |ui| {
+                egui::Frame::NONE.fill(egui::Color32::from_rgb(10, 10, 10)).corner_radius(8).inner_margin(Margin::same(10)).show(ui, |ui| {
                     ui.set_width(ui.available_width());
                     ui.add(egui::Label::new(RichText::new(code.trim_end()).monospace().size(12.5).color(TEXT2)).selectable(true));
                 });

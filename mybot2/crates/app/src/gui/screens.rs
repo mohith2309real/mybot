@@ -585,7 +585,7 @@ impl App {
                             ui.set_width(ui.available_width());
                             ui.horizontal(|ui| {
                                 let site = mybot_catalog::site_for_origin(&l.origin).map(|s| s.name.clone()).unwrap_or_else(|| l.origin.clone());
-                                avatar(ui, &site, 30.0, None);
+                                initials_tile(ui, &site, 30.0);
                                 ui.vertical(|ui| {
                                     ui.spacing_mut().item_spacing.y = 0.0;
                                     ui.label(RichText::new(format!("{site}{}", l.label.as_deref().map(|x| format!(" · {x}")).unwrap_or_default())).strong());
@@ -883,7 +883,7 @@ impl App {
             }
         });
         if let Some((note, bad)) = &self.screens.gpt_note {
-            egui::Frame::NONE.fill(egui::Color32::from_rgb(14, 13, 11)).corner_radius(8).inner_margin(egui::Margin::same(8)).show(ui, |ui| {
+            egui::Frame::NONE.fill(egui::Color32::from_rgb(12, 12, 12)).corner_radius(8).inner_margin(egui::Margin::same(8)).show(ui, |ui| {
                 ui.set_width(ui.available_width());
                 ui.add(egui::Label::new(RichText::new(note).monospace().size(11.5).color(if *bad { BAD } else { MUTED })).wrap());
             });

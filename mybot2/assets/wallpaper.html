@@ -1,0 +1,95 @@
+<!doctype html>
+<!--
+  MyBot wallpaper — every teammate's desktop, and a download on the website.
+
+  A nod to a famous Windows 8 leak, whose wallpaper said "shhh… let's not leak
+  our hard work": the same deadpan, in MyBot's own look — black, white type,
+  our small print and our wordmark. Selawik (Microsoft's open Segoe UI
+  stand-in, OFL) for the text; the wordmark is Groote as outlines.
+
+  Open in a browser:  wallpaper.html?w=1440&h=900
+  The canvas is the image; window.DONE turns true when it's finished.
+-->
+<meta charset="utf-8">
+<title>MyBot wallpaper</title>
+<style>
+@font-face { font-family: "Selawik Light"; src: url("fonts/selawkl.ttf"); }
+@font-face { font-family: "Selawik Semilight"; src: url("fonts/selawksl.ttf"); }
+html, body { margin: 0; background: #000; }
+canvas { display: block; max-width: 100vw; height: auto; }
+</style>
+<canvas></canvas>
+<script>
+const Q = new URLSearchParams(location.search);
+const W = +Q.get("w") || 3840, H = +Q.get("h") || 2160;
+const VERSION = Q.get("v") || "2.2";
+const BUILD = Q.get("build") || "2.2.0.mybot_mono.261009-1450";
+const WORDMARK = new Path2D("M994.0 -1050.0L637.0 -262.0L280.0 -1050.0L50.0 -1050.0L50.0 -0.0L235.0 -0.0L235.0 -700.0L535.0 -37.0L552.0 -0.0L722.0 -0.0L739.0 -37.0L1039.0 -700.0L1039.0 -0.0L1224.0 -0.0L1224.0 -1050.0ZM1747.0 82.0C1722.0 107.0 1687.0 123.0 1648.0 123.0C1600.0 123.0 1558.0 98.0 1533.0 61.0L1333.0 61.0C1357.0 156.0 1422.0 235.0 1509.0 277.0C1551.0 297.0 1599.0 308.0 1648.0 308.0C1698.0 308.0 1745.0 297.0 1787.0 277.0C1874.0 235.0 1940.0 156.0 1964.0 61.0L1764.0 61.0C1759.0 68.0 1753.0 75.0 1747.0 82.0ZM1787.0 -681.0L1787.0 -325.0C1787.0 -287.0 1772.0 -252.0 1747.0 -227.0C1722.0 -202.0 1687.0 -186.0 1648.0 -186.0C1572.0 -186.0 1509.0 -249.0 1509.0 -325.0L1509.0 -681.0L1324.0 -681.0L1324.0 -325.0C1324.0 -196.0 1400.0 -84.0 1509.0 -32.0C1551.0 -12.0 1599.0 -1.0 1648.0 -1.0C1698.0 -1.0 1745.0 -12.0 1787.0 -32.0C1897.0 -84.0 1973.0 -196.0 1973.0 -325.0L1973.0 -681.0ZM2877.0 -578.0C2915.0 -628.0 2938.0 -690.0 2938.0 -757.0C2938.0 -838.0 2905.0 -911.0 2852.0 -964.0C2799.0 -1018.0 2726.0 -1050.0 2645.0 -1050.0L2258.0 -1050.0L2073.0 -1050.0L2073.0 -0.0L2675.0 -0.0C2855.0 -0.0 3000.0 -145.0 3000.0 -324.0C3000.0 -414.0 2963.0 -495.0 2905.0 -554.0C2896.0 -562.0 2887.0 -571.0 2877.0 -578.0ZM2258.0 -865.0L2645.0 -865.0C2674.0 -865.0 2701.0 -853.0 2721.0 -833.0C2741.0 -814.0 2753.0 -787.0 2753.0 -757.0C2753.0 -614.0 2258.0 -556.0 2258.0 -556.0ZM2675.0 -185.0L2258.0 -185.0L2258.0 -463.0L2675.0 -463.0C2714.0 -463.0 2749.0 -448.0 2774.0 -423.0C2799.0 -398.0 2814.0 -363.0 2814.0 -324.0C2814.0 -248.0 2752.0 -185.0 2675.0 -185.0ZM3543.0 -648.0C3501.0 -668.0 3454.0 -680.0 3404.0 -680.0C3355.0 -680.0 3307.0 -668.0 3265.0 -648.0C3156.0 -596.0 3080.0 -485.0 3080.0 -355.0L3080.0 -324.0C3080.0 -195.0 3156.0 -83.0 3265.0 -31.0C3307.0 -11.0 3355.0 -0.0 3404.0 -0.0C3454.0 -0.0 3501.0 -11.0 3543.0 -31.0C3653.0 -83.0 3729.0 -195.0 3729.0 -324.0L3729.0 -355.0C3729.0 -485.0 3653.0 -596.0 3543.0 -648.0ZM3543.0 -324.0C3543.0 -286.0 3528.0 -251.0 3503.0 -226.0C3478.0 -201.0 3443.0 -185.0 3404.0 -185.0C3328.0 -185.0 3265.0 -248.0 3265.0 -324.0L3265.0 -355.0C3265.0 -432.0 3328.0 -494.0 3404.0 -494.0C3443.0 -494.0 3478.0 -479.0 3503.0 -454.0C3528.0 -428.0 3543.0 -394.0 3543.0 -355.0ZM4047.0 -216.0C4047.0 -216.0 4047.0 -332.0 4047.0 -371.0C4047.0 -461.0 3959.0 -463.0 3893.0 -463.0L3893.0 -494.0L4047.0 -494.0L4078.0 -494.0L4140.0 -494.0L4140.0 -680.0L4047.0 -680.0L4047.0 -865.0L3862.0 -865.0L3862.0 -680.0L3769.0 -680.0L3769.0 -494.0L3862.0 -494.0L3862.0 -216.0C3862.0 -97.0 3958.0 -0.0 4078.0 -0.0L4202.0 -0.0L4202.0 -185.0L4078.0 -185.0C4061.0 -185.0 4047.0 -199.0 4047.0 -216.0Z");
+const WM = { x: 50, y: -1050, w: 4152, h: 1358 };
+
+const cv = document.querySelector("canvas");
+cv.width = W; cv.height = H;
+const g = cv.getContext("2d");
+
+async function draw() {
+  await Promise.all([document.fonts.load(`100px "Selawik Light"`), document.fonts.load(`100px "Selawik Semilight"`)]);
+  // Type is sized off the height, so 16:9 and 16:10 read the same.
+  const u = H / 900;
+
+  // Black, lifting to a soft charcoal glow low on the right, where the
+  // original had its teal.
+  g.fillStyle = "#040404";
+  g.fillRect(0, 0, W, H);
+  const glow = g.createRadialGradient(W * 0.86, H * 1.02, 0, W * 0.86, H * 1.02, Math.hypot(W, H) * 0.72);
+  glow.addColorStop(0, "rgba(255,255,255,0.20)");
+  glow.addColorStop(0.35, "rgba(255,255,255,0.075)");
+  glow.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = glow;
+  g.fillRect(0, 0, W, H);
+  const sheen = g.createLinearGradient(0, 0, W, H);
+  sheen.addColorStop(0, "rgba(0,0,0,0.35)");
+  sheen.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = sheen;
+  g.fillRect(0, 0, W, H);
+
+  // The line.
+  g.fillStyle = "rgba(255,255,255,0.93)";
+  g.textBaseline = "alphabetic";
+  g.font = `${Math.round(74 * u)}px "Selawik Light"`;
+  const x = Math.round(W * 0.27), top = 150 * u, lh = 86 * u;
+  ["shhh...", "let’s not leak", "our hard work"].forEach((line, i) => g.fillText(line, x, top + i * lh));
+
+  // The small print: ours.
+  g.fillStyle = "rgba(255,255,255,0.80)";
+  g.font = `${(15.5 * u).toFixed(1)}px "Selawik Semilight"`;
+  const small = [
+    "Unauthorized use of your passwords is not possible in any",
+    "manner: MyBot types them into the page itself, and the",
+    "teammate working on this computer never sees them.",
+    "Sending, buying, paying and deleting wait for a human.",
+  ];
+  const sx = Math.round(W - 470 * u - 40 * u), sy = H - 245 * u;
+  small.forEach((line, i) => g.fillText(line, sx, sy + i * 21 * u));
+
+  // Bottom right: the wordmark and the version, then the build line.
+  g.textAlign = "right";
+  const right = W - 40 * u;
+  g.font = `${(15.5 * u).toFixed(1)}px "Selawik Semilight"`;
+  g.fillText(`Teammate copy. Build ${BUILD}`, right, H - 58 * u);
+  const vtxt = ` ${VERSION}`;
+  g.font = `${(17 * u).toFixed(1)}px "Selawik Semilight"`;
+  const vw = g.measureText(vtxt).width;
+  g.fillText(vtxt, right, H - 82 * u);
+  const wmH = 17 * u * (WM.h / 1050);        // cap height matches the text
+  const wmW = WM.w / WM.h * wmH;
+  g.save();
+  g.translate(right - vw - wmW, H - 82 * u - 17 * u * 0.74 - (wmH * 1050 / WM.h - 17 * u * 0.74));
+  g.scale(wmW / WM.w, wmH / WM.h);
+  g.translate(-WM.x, -WM.y);
+  g.fill(WORDMARK);
+  g.restore();
+
+  window.DONE = true;
+}
+draw();
+</script>

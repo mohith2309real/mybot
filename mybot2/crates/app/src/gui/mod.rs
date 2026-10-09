@@ -4,6 +4,7 @@
 //! web view anywhere.
 
 mod chat;
+mod brand;
 mod computer;
 mod screens;
 mod snapshot;
@@ -219,6 +220,13 @@ impl App {
 
     fn reload_bots(&mut self) {
         self.bots = self.engine.db.bots().unwrap_or_default();
+        for b in &self.bots {
+            if let Ok(Some(v)) = self.engine.db.setting(&theme::face_key(&b.name))
+                && let Ok(i) = v.parse::<usize>()
+            {
+                theme::set_face(&b.name, i);
+            }
+        }
         if self.selected.as_ref().is_none_or(|id| !self.bots.iter().any(|b| &b.id == id)) {
             self.selected = self.bots.first().map(|b| b.id.clone());
         }
@@ -413,8 +421,9 @@ impl App {
             ui.add_space((ui.available_height() * 0.22).max(24.0));
             ui.vertical_centered(|ui| {
                 theme::app_tile(ui, 76.0);
-                ui.add_space(12.0);
-                ui.label(RichText::new("MyBot").font(semibold(28.0)).color(TEXT));
+                ui.add_space(16.0);
+                brand::wordmark(ui, 30.0, TEXT);
+                ui.add_space(6.0);
                 ui.label(muted(if first_run { "Choose a passphrase. It encrypts your API keys and saved logins on this computer." } else { "Enter your passphrase to unlock your keys and saved logins." }));
                 ui.add_space(18.0);
                 ui.allocate_ui(Vec2::new(360.0, 260.0), |ui| {
@@ -480,10 +489,8 @@ impl App {
             .frame(egui::Frame::NONE.fill(RAIL).inner_margin(Margin { left: 10, right: 10, top: 14, bottom: 10 }).stroke(Stroke::new(1.0, LINE_SOFT)))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.add_space(6.0);
-                    theme::mark(ui, 24.0);
-                    ui.add_space(2.0);
-                    ui.label(RichText::new("MyBot").font(semibold(16.5)).color(TEXT));
+                    ui.add_space(8.0);
+                    brand::wordmark(ui, 21.0, TEXT);
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         ui.add_space(2.0);
                         if round_icon_button(ui, Glyph::Plus).on_hover_text("New teammate").clicked() {
@@ -594,7 +601,7 @@ impl App {
                 egui::Frame::NONE.fill(PANEL).stroke(Stroke::new(1.0, ACCENT)).corner_radius(12).inner_margin(Margin::same(14)).shadow(egui::Shadow { offset: [0, 6], blur: 24, spread: 0, color: Color32::from_black_alpha(140) }).show(ui, |ui| {
                     ui.set_width(332.0);
                     ui.horizontal(|ui| {
-                        avatar(ui, &r.bot, 26.0, None);
+                        avatar(ui, &r.bot, 26.0, Mood::NeedsYou);
                         ui.label(RichText::new(format!("{} wants to sign in", r.bot)).strong());
                     });
                     let site = mybot_catalog::site_for_origin(&r.origin).map(|s| s.name.clone()).unwrap_or_else(|| r.origin.clone());
@@ -664,21 +671,53 @@ struct RosterMeta {
     when: String,
 }
 
+/// Every face in every mood, with the app icon: `MYBOT_SNAPSHOT_VIEW=faces`.
+fn faces_sheet(ui: &mut egui::Ui) {
+    egui::CentralPanel::default().frame(egui::Frame::NONE.fill(BG)).show(ui, |ui| {
+        let moods = [(Mood::Idle, "Idle"), (Mood::Working, "Working"), (Mood::NeedsYou, "Needs you"), (Mood::Done, "Done")];
+        let full = ui.max_rect();
+        let p = ui.painter();
+        // Header: icon, wordmark, one line.
+        let top = full.top() + 48.0;
+        let icon = egui::Rect::from_min_size(egui::pos2(full.center().x - 330.0, top), Vec2::splat(72.0));
+        p.rect_filled(icon, 16, Color32::from_rgb(10, 10, 10));
+        theme::paint_face(p, egui::Rect::from_center_size(icon.center(), Vec2::splat(72.0 * 0.6975)), theme::GLANCE, Mood::Idle, TEXT, 2.0);
+        brand::paint_wordmark(p, egui::Rect::from_min_size(egui::pos2(icon.right() + 22.0, top + 10.0), Vec2::new(29.0 * 4152.0 / 1358.0, 29.0)), TEXT);
+        p.text(egui::pos2(icon.right() + 22.0, top + 52.0), Align2::LEFT_TOP, "Eight faces. The expression follows what the teammate is doing.", egui::FontId::proportional(14.0), MUTED);
+        // The grid: names down the side, moods across the top.
+        let (cell, row_h) = (128.0, 80.0);
+        let x0 = full.center().x - 330.0 + 110.0;
+        let y0 = top + 110.0;
+        for (j, (_, label)) in moods.iter().enumerate() {
+            p.text(egui::pos2(x0 + cell * (j as f32 + 0.5), y0), Align2::CENTER_TOP, *label, egui::FontId::proportional(13.0), MUTED);
+        }
+        for (i, face) in theme::FACES.iter().enumerate() {
+            let cy = y0 + 50.0 + row_h * i as f32;
+            p.text(egui::pos2(x0 - 110.0, cy), Align2::LEFT_CENTER, face.name, semibold(15.0), TEXT2);
+            for (j, (mood, _)) in moods.iter().enumerate() {
+                let c = egui::pos2(x0 + cell * (j as f32 + 0.5), cy);
+                // Out of step, like a real roster.
+                theme::paint_face(p, egui::Rect::from_center_size(c, Vec2::splat(64.0)), i, *mood, theme::face_shade(i), 2.0 + i as f64 * 0.9);
+            }
+        }
+    });
+}
+
 /// One teammate in the roster: tile · name · chip · time, then a preview line.
 fn roster_row(ui: &mut egui::Ui, row: &RosterRow) -> egui::Response {
     let (rect, resp) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 60.0), Sense::click());
     let p = ui.painter().clone();
-    let bg = if row.selected { RAISED } else if resp.hovered() { Color32::from_rgb(22, 21, 19) } else { RAIL };
+    let bg = if row.selected { RAISED } else if resp.hovered() { HOVER } else { RAIL };
     if bg != RAIL {
         p.rect_filled(rect, 12, bg);
     }
-    let dot = match row.tone {
-        Tone::Attention => Some(ACCENT),
-        Tone::Live => Some(GOOD),
-        Tone::Quiet => None,
+    let mood = match row.tone {
+        Tone::Attention => Mood::NeedsYou,
+        Tone::Live => Mood::Working,
+        Tone::Quiet => Mood::Idle,
     };
     let tile = egui::Rect::from_min_size(rect.left_top() + Vec2::new(10.0, 11.0), Vec2::splat(38.0));
-    theme::paint_avatar(&p, tile, row.name, dot, bg);
+    theme::paint_avatar(&p, tile, row.name, mood);
 
     let x0 = tile.right() + 12.0;
     let right = rect.right() - 10.0;
@@ -728,7 +767,7 @@ fn nav_row(ui: &mut egui::Ui, icon: &str, label: &str, selected: bool, badge: Op
     if selected {
         p.rect_filled(rect, 10, RAISED);
     } else if resp.hovered() {
-        p.rect_filled(rect, 10, Color32::from_rgb(22, 21, 19));
+        p.rect_filled(rect, 10, HOVER);
     }
     let ink = if selected { TEXT } else { TEXT2 };
     p.text(rect.left_center() + Vec2::new(14.0, 0.0), Align2::LEFT_CENTER, icon, egui::FontId::proportional(13.0), if selected { ACCENT } else { MUTED });
@@ -827,6 +866,13 @@ impl eframe::App for App {
             return;
         }
         self.background(&ctx);
+        if self.snapshot.as_ref().is_some_and(|s| s.view == "faces") {
+            faces_sheet(ui);
+            if let Some(s) = &mut self.snapshot {
+                s.tick(&ctx);
+            }
+            return;
+        }
         self.rail(ui);
         match self.view {
             View::Chat => {

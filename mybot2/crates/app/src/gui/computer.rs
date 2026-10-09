@@ -235,7 +235,7 @@ impl App {
             // The frame's 1 px stroke sits outside its content: leave room for it,
             // or a resizable panel grows by 2 px every frame.
             let w = ui.available_width() - 2.0;
-            egui::Frame::NONE.fill(Color32::from_rgb(9, 8, 7)).corner_radius(14).stroke(Stroke::new(1.0, LINE_SOFT)).show(ui, |ui| {
+            egui::Frame::NONE.fill(Color32::from_rgb(8, 8, 8)).corner_radius(14).stroke(Stroke::new(1.0, LINE_SOFT)).show(ui, |ui| {
                 ui.set_min_size(Vec2::new(w, w * 0.6));
                 ui.vertical_centered(|ui| {
                     ui.add_space(w * 0.16);
@@ -243,7 +243,7 @@ impl App {
                         ui.add(egui::Spinner::new().size(22.0).color(ACCENT));
                         ui.label(muted(if self.computer.starting { "Starting the computer… the first start builds its image and can take a few minutes." } else { "Looking for the computer…" }));
                     } else {
-                        avatar(ui, &bot.name, 40.0, None);
+                        avatar(ui, &bot.name, 40.0, Mood::Idle);
                         ui.add_space(4.0);
                         ui.label(RichText::new(format!("{}'s computer is off", bot.name)).font(semibold(14.5)).color(TEXT2));
                         ui.label(small("It starts by itself when a task needs it."));

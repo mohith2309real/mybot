@@ -14,7 +14,9 @@ use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
-pub const IMAGE: &str = "mybot-desktop:0.2";
+/// 0.3: the MyBot wallpaper on every desktop. A new tag, so an existing 0.2
+/// image is rebuilt once instead of being reused without it.
+pub const IMAGE: &str = "mybot-desktop:0.3";
 pub const AGENTD_PORT: u16 = 7000;
 pub const DEFAULT_CONVERSATION: &str = "default";
 
@@ -22,6 +24,8 @@ const DOCKERFILE: &str = include_str!("../../../../docker/Dockerfile");
 const AGENTD: &str = include_str!("../../../../docker/agentd.py");
 const DESKTOPCTL: &str = include_str!("../../../../docker/desktopctl.sh");
 const CDP_RELAY: &str = include_str!("../../../../docker/cdp-relay.py");
+const WALLPAPER: &[u8] = include_bytes!("../../../../docker/wallpaper.jpg");
+const DESKTOP_XML: &str = include_str!("../../../../docker/xfce4-desktop.xml");
 
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum ComputerError {
@@ -90,7 +94,15 @@ pub async fn image_exists() -> bool {
 pub async fn build_image(on_line: &(dyn Fn(String) + Send + Sync)) -> Result<()> {
     let dir: PathBuf = mybot_vault::home().join("docker-build");
     std::fs::create_dir_all(&dir).map_err(|e| ComputerError::Failed(e.to_string()))?;
-    for (name, body) in [("Dockerfile", DOCKERFILE), ("agentd.py", AGENTD), ("desktopctl.sh", DESKTOPCTL), ("cdp-relay.py", CDP_RELAY)] {
+    let files: [(&str, &[u8]); 6] = [
+        ("Dockerfile", DOCKERFILE.as_bytes()),
+        ("agentd.py", AGENTD.as_bytes()),
+        ("desktopctl.sh", DESKTOPCTL.as_bytes()),
+        ("cdp-relay.py", CDP_RELAY.as_bytes()),
+        ("wallpaper.jpg", WALLPAPER),
+        ("xfce4-desktop.xml", DESKTOP_XML.as_bytes()),
+    ];
+    for (name, body) in files {
         std::fs::write(dir.join(name), body).map_err(|e| ComputerError::Failed(e.to_string()))?;
     }
     let mut child = Command::new("docker")

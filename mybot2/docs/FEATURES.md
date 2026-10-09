@@ -1,13 +1,13 @@
-# Features (191)
+# Features (194)
 
 What MyBot 2 does, one feature per line. On top of these are the catalogs: [249 actions](ACTIONS.md), [245 built-in skills](SKILLS.md) and [300 sites](SITES.md).
 
 
-## The window (33)
+## The window (35)
 
 1. Native desktop app (Rust, egui): no web view anywhere
-2. Roster: each teammate's colour tile, role chip, time and last message (same colours as MyBot 1.x)
-3. Live state on each teammate: working, or needs you
+2. Roster: each teammate's face, role chip, time and last message
+3. Live state on each teammate's face: working (it reads, types, thinks, scans or hums), needs you (wide eyes, a bounce or a wiggle), done (^ ^)
 4. A conversation per teammate, rebuilt from history on open
 5. Replies stream in as they're written
 6. Live preview of the model's thinking while it works
@@ -25,7 +25,7 @@ What MyBot 2 does, one feature per line. On top of these are the catalogs: [249 
 18. The window asks for attention when a sign-in request arrives
 19. Short notices (toasts) for results and errors
 20. Remembers the open teammate and the computer panel between launches
-21. MyBot's hexagon mark as the window, Dock and app icon (macOS .app and Windows .exe)
+21. The face “Glance” as the window, Dock and app icon (macOS .app and Windows .exe); the “MyBot” wordmark in the sidebar
 22. Adapts down to 900×560: compact header, wrapped banner, truncated steps
 23. Lock and unlock from the sidebar
 24. Unlock screen; first run creates the passphrase (typed twice, 8+ characters)
@@ -35,11 +35,13 @@ What MyBot 2 does, one feature per line. On top of these are the catalogs: [249 
 28. Edit a teammate; delete one (with confirmation)
 29. Shows which providers have no key yet
 30. System UI font (SF on macOS, Segoe UI on Windows) at real regular and semibold weights
-31. Warm dark palette and amber accent, shared with MyBot 1.x
+31. Monochrome: true greys on black, white as the one accent; red only for recording and deleting
 32. Round composer: + for skills, and a send / stop button
 33. `MYBOT_SNAPSHOT`: repeatable screenshots of any screen, without touching your data
+34. Eight faces to pick from when you create or edit a teammate; each has its own moves for every mood
+35. Faces only animate while something is happening: idle faces wake the window just for a blink or a glance
 
-## Each teammate's computer (19)
+## Each teammate's computer (20)
 
 1. A Docker container per conversation
 2. A separate desktop (X display) per teammate
@@ -60,6 +62,7 @@ What MyBot 2 does, one feature per line. On top of these are the catalogs: [249 
 17. Stop or remove the computer from the command line
 18. The step it's waiting on shows inside the computer, with I'm done, continue and Skip this step
 19. A red frame and “… is watching and learning” while you teach a task
+20. The MyBot wallpaper on every desktop (“shhh... let's not leak our hard work”), with a dark panel
 
 ## What a teammate can do (16)
 
