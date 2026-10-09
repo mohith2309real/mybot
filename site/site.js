@@ -38,6 +38,7 @@ const INK = "#0e0e0e";
 const MOODS = ["idle", "working", "needs", "done"];
 const MOOD_LABEL = { idle: "Idle", working: "Working", needs: "Needs you", done: "Done" };
 const WORK_LABEL = { read: "Reading", type: "Typing", think: "Thinking", scan: "Scanning", hum: "Humming along" };
+const faceSceneOnly = document.documentElement.dataset.faceScene === "true";
 
 const clamp01 = (u) => Math.max(0, Math.min(1, u));
 const ease = (u) => { u = clamp01(u); return u * u * (3 - 2 * u); };
@@ -148,6 +149,10 @@ function drawFace(g, size, f, mood, t, phase, shade) {
   return doing;
 }
 
+// The launch video calls the same renderer with its own frame time, so its
+// expressions stay deterministic and match the website's face design.
+window.MyBotFaceDrawing = Object.freeze({ faces: FACES, shades: SHADES, draw: drawFace });
+
 // Every face canvas on the page, drawn each frame while it's on screen.
 const live = new Set();
 const all = [];
@@ -199,7 +204,7 @@ if (grid) {
     if (!still) setInterval(() => { if (performance.now() - since > 4000) next(); }, 6500 + i * 450);
   });
 }
-requestAnimationFrame(frame);
+if (!faceSceneOnly) requestAnimationFrame(frame);
 
 // ── downloads ────────────────────────────────────────────────────────────
 function mine() {
@@ -241,7 +246,8 @@ async function latestRelease() {
   }
 }
 
-latestRelease()
+if (!faceSceneOnly) {
+  latestRelease()
   .then((rel) => {
     const assets = rel.assets || {};
     for (const el of document.querySelectorAll('[data-release="version"]')) el.textContent = `MyBot ${rel.version}`;
@@ -273,3 +279,4 @@ latestRelease()
   .catch(() => {
     // Nothing to point at yet: the buttons stay on the download section.
   });
+}

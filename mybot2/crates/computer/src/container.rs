@@ -14,9 +14,9 @@ use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
-/// 0.3: the MyBot wallpaper on every desktop. A new tag, so an existing 0.2
+/// 0.4: the MyBot wallpaper on every desktop. A new tag, so an older
 /// image is rebuilt once instead of being reused without it.
-pub const IMAGE: &str = "mybot-desktop:0.3";
+pub const IMAGE: &str = "mybot-desktop:0.4";
 pub const AGENTD_PORT: u16 = 7000;
 pub const DEFAULT_CONVERSATION: &str = "default";
 

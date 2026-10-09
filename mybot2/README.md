@@ -1,4 +1,4 @@
-# MyBot 2.0
+# MyBot 3
 
 AI teammates that work on their own computers, in a native desktop app written in
 Rust. There is no web view anywhere: the window, the live view of each bot's
