@@ -28,7 +28,7 @@ and export, so third-party skills work too.
 
 ## Download
 
-**[mybot2.web.app](https://mybot2.web.app/)** —
+**[my-bot.web.app](https://my-bot.web.app/)** —
 builds for Windows, macOS (Apple silicon and Intel) and Linux, also on the
 [releases page](https://github.com/mohith2309real/mybot/releases). The release
 notes say how to open them the first time, since they aren't signed by Apple or

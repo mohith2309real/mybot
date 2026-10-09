@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Build the website and publish it to Firebase Hosting: https://mybot2.web.app
+# Build the website and publish it to Firebase Hosting: https://my-bot.web.app
 #
 #   site/deploy.sh
 #
-# Uses the Firebase CLI's own login (`firebase login`), site `mybot2` in the
+# Uses the Firebase CLI's own login (`firebase login`), site `my-bot` in the
 # project `mohith-sites-2309` (the same project as mohith2309.web.app and
 # sparky-code.web.app). The page reads the latest release from GitHub's API
 # when it loads, so a new release needs no redeploy; release.json below is
@@ -11,7 +11,7 @@
 set -euo pipefail
 
 project="mohith-sites-2309"
-site="mybot2"
+site="my-bot"
 repo="mohith2309real/mybot"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 out="$(mktemp -d)"

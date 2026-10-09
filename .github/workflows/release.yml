@@ -12,7 +12,7 @@
 # MYBOT_UPDATE_SIGNING_KEY secret; the app installs updates only when that
 # signature checks out against the public key compiled into it.
 #
-# The website (site/, https://mybot2.web.app on Firebase) reads the latest
+# The website (site/, https://my-bot.web.app on Firebase) reads the latest
 # release from GitHub when it loads, so releases need no site deploy; deploy
 # site changes with site/deploy.sh.
 

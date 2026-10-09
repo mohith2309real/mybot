@@ -1,4 +1,4 @@
-MyBot 2.1 is a new look, a second way to run GPT, and updates that install themselves. Website: https://mybot2.web.app
+MyBot 2.1 is a new look, a second way to run GPT, and updates that install themselves. Website: https://my-bot.web.app
 
 ## What's new
 
