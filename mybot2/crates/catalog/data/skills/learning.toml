@@ -1,0 +1,80 @@
+[[skill]]
+name = "Study plan"
+category = "Learning"
+description = "Make a week-by-week plan to learn a subject."
+inputs = ["subject", "weeks", "hours_per_week"]
+instructions = """
+Make a {{weeks}}-week plan to learn {{subject}} at {{hours_per_week}} hours a week, using free, reputable resources. Each week: goals, resources with links, and a small practice task. Save to /workspace/learning/plan.md."""
+
+[[skill]]
+name = "Flashcards from notes"
+category = "Learning"
+description = "Turn notes into question-and-answer flashcards."
+inputs = ["file"]
+instructions = """
+Read {{file}} and write 20–40 flashcards (question; answer) covering the key facts and concepts. Save as CSV that imports into Anki (front,back)."""
+
+[[skill]]
+name = "Quiz me"
+category = "Learning"
+description = "Write a quiz on a topic with an answer key."
+inputs = ["topic", "level"]
+instructions = """
+Write a 15-question quiz on {{topic}} at {{level}} level: mix multiple choice and short answer. Put the answer key with explanations at the end, separated so it is not seen first."""
+
+[[skill]]
+name = "Course finder"
+category = "Learning"
+description = "Find good courses on a subject."
+inputs = ["subject"]
+instructions = """
+Find 8 well-regarded courses on {{subject}} (free and paid), with provider, length, price, level, rating and what you build or learn. Do not enrol."""
+safety = ["always-confirm: enrolling or paying"]
+
+[[skill]]
+name = "Reading list"
+category = "Learning"
+description = "Build a reading list on a subject."
+inputs = ["subject"]
+instructions = """
+Build a reading list on {{subject}} in order from beginner to advanced: 10 books or long-form pieces with author, year, why it is on the list and where to get it."""
+
+[[skill]]
+name = "Vocabulary list"
+category = "Learning"
+description = "Collect vocabulary for a language and topic."
+inputs = ["language", "topic"]
+instructions = """
+Make a list of 50 useful {{language}} words and phrases for {{topic}}, with translation, part of speech, and an example sentence for each. Save as CSV for flashcards."""
+
+[[skill]]
+name = "Explain like a tutor"
+category = "Learning"
+description = "Teach a concept step by step with checks."
+inputs = ["concept"]
+instructions = """
+Teach {{concept}} in steps: intuition, a worked example, a common mistake, and two practice problems with solutions hidden at the end."""
+
+[[skill]]
+name = "Lecture notes from video"
+category = "Learning"
+description = "Make notes from a lecture video."
+inputs = ["video_url"]
+instructions = """
+Open {{video_url}} and read its transcript if available. Write structured lecture notes with headings, key definitions, examples and timestamps for each section."""
+
+[[skill]]
+name = "Practice problems"
+category = "Learning"
+description = "Generate practice problems with solutions."
+inputs = ["topic", "count"]
+instructions = """
+Write {{count}} practice problems on {{topic}} increasing in difficulty, each with a full worked solution in a separate section."""
+
+[[skill]]
+name = "Citation formatter"
+category = "Learning"
+description = "Format references in a citation style."
+inputs = ["file", "style"]
+instructions = """
+Read the references in {{file}} and format them in {{style}} style. Look up missing details (year, publisher, DOI) and mark anything you could not verify."""

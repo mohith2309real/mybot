@@ -7,6 +7,8 @@ import * as merge from './merge.ts';
 import * as liveview from './liveview.ts';
 import type { Boundary, BoundaryKind } from './liveview.ts';
 import { checkDestructive } from '../policy/index.ts';
+import * as logins from '../secrets/logins.ts';
+import { fillLogin } from './loginfill.ts';
 
 /**
  * Who is running, and on whose behalf.
@@ -24,6 +26,12 @@ export interface ToolContext {
   model?: string;
   hostWaitMs?: number;
   mergeWaitMs?: number;
+  /** How long a saved-login approval waits for the human. Default 3 min. */
+  loginWaitMs?: number;
+  /** The run's Stop button, so a pending sign-in approval is withdrawn with it. */
+  signal?: AbortSignal;
+  /** Bot name shown on a sign-in approval card. Display only. */
+  requester?: string;
 }
 
 /**
@@ -72,6 +80,29 @@ export const TOOLS: ToolDefinition[] = [
         submit: { type: 'boolean', description: 'Press Enter after typing' },
       },
       required: ['ref', 'text'],
+    },
+  },
+  {
+    name: 'fill_login',
+    description:
+      'Sign in with a login the human saved for this exact site. Give the ref of the password field, ' +
+      'and of the username/email field if it is on the same page (two-step sign-ins: call it once on the ' +
+      'username page with only username_ref, then again on the password page with only password_ref). ' +
+      'The human is asked to approve, then MyBot fills the fields itself — you never see the password and ' +
+      'must never type one. If nothing is saved for this site, the human is handed the browser to sign in. ' +
+      'One-time codes and 2FA are always the human\'s.',
+    parameters: {
+      type: 'object',
+      properties: {
+        password_ref: { type: 'integer', description: 'Ref of the password field, from page_read' },
+        username_ref: { type: 'integer', description: 'Ref of the username or email field, from page_read' },
+        account: {
+          type: 'string',
+          description: 'Which saved username to use, only if more than one is saved for this site',
+        },
+        submit: { type: 'boolean', description: 'Press Enter after filling (default true)' },
+      },
+      required: [],
     },
   },
   {
@@ -231,9 +262,61 @@ export async function runTool(
 
         const snapshot = await browser.snapshot();
         const b = await liveview.detectBoundary({ action: 'type', ref, snapshot });
+        if (b?.kind === 'password' && logins.loginsExist()) {
+          // Not a pause yet: there may be a saved login for this site, and
+          // fill_login is the way to use it. fill_login itself hands over to the
+          // human when there is not, so nothing is lost by redirecting.
+          return {
+            isError: true,
+            content:
+              `Ref ${ref} is a password field. Never type passwords. Call fill_login with ` +
+              `password_ref=${ref} (plus username_ref if the username field is on this page).`,
+          };
+        }
         if (b) return pauseOutcome(b);
 
         return { content: await browser.type(ref, text, Boolean(input.submit)) };
+      }
+
+      case 'fill_login': {
+        const num = (v: unknown) => (v === undefined || v === null || v === '' ? undefined : Number(v));
+        const result = await fillLogin(
+          {
+            passwordRef: num(input.password_ref),
+            usernameRef: num(input.username_ref),
+            account: typeof input.account === 'string' ? input.account : undefined,
+            // Submitting by default keeps a filled password in the page for as
+            // short a time as possible.
+            submit: input.submit === undefined ? true : Boolean(input.submit),
+          },
+          {
+            bot: ctx.requester ?? ctx.bot,
+            taskId: ctx.taskId,
+            signal: ctx.signal,
+            approvalWaitMs: ctx.loginWaitMs,
+          },
+          { snapshot: () => browser.snapshot(), fill: browser.fillCredential, approve: logins.requestApproval },
+        );
+        switch (result.kind) {
+          case 'filled':
+          case 'denied':
+            return { content: result.text };
+          case 'error':
+            return { isError: true, content: result.text };
+          case 'handoff': {
+            let url = '';
+            try {
+              url = (await browser.activePage()).url();
+            } catch {
+              /* no page to name */
+            }
+            return pauseOutcome(
+              { kind: 'password', reason: result.reason, evidence: 'fill_login', url, source: 'element' },
+              `${result.text}\n`,
+            );
+          }
+        }
+        break;
       }
 
       case 'page_scroll':

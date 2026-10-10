@@ -54,6 +54,15 @@ RUN groupadd bots \
 COPY agentd.py desktopctl.sh cdp-relay.py /usr/local/bin/
 RUN chmod +x /usr/local/bin/agentd.py /usr/local/bin/desktopctl.sh /usr/local/bin/cdp-relay.py
 
+# The MyBot wallpaper, as every bot desktop's default (users can still change it).
+COPY wallpaper.jpg /usr/share/backgrounds/mybot/wallpaper.jpg
+COPY xfce4-desktop.xml /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml
+# Adwaita has a dark variant, so the panel's default dark mode actually shows;
+# the stock "Xfce" theme has none and the panel stayed light grey.
+RUN sed -i 's|name="ThemeName" type="string" value="Xfce"|name="ThemeName" type="string" value="Adwaita"|' \
+      /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml \
+    && grep -q 'value="Adwaita"' /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml
+
 USER agent
 WORKDIR /workspace
 

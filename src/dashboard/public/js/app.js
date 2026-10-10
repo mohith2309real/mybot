@@ -12,13 +12,15 @@
  * input; innerHTML here would be a cross-site scripting hole with extra steps.
  */
 import { api, subscribe, tokenised } from './api.js';
-import { el, clear, $, initials, clock, whenText } from './dom.js';
+import { el, clear, $, initials, clock, whenText, parseDbTime } from './dom.js';
 
 const state = {
   bots: [],
   selected: null,
   computer: null,
   paused: [],
+  /** Pending sign-in approvals, oldest first. */
+  loginRequests: [],
   /** botId -> rendered message nodes, so switching threads keeps history. */
   threads: new Map(),
   providers: ['anthropic', 'openai', 'gemini'],
@@ -931,6 +933,187 @@ function clearPausedTitle() {
 }
 window.addEventListener('focus', clearPausedTitle);
 
+// ── sign-in approvals ───────────────────────────────────────────────────
+
+/**
+ * A bot asking to use one of your saved logins.
+ *
+ * The card names the exact site and account, because that is the decision:
+ * not "may the bot sign in" but "may it sign in to *this* site as *this* you".
+ * The password never reaches this page. An unanswered card expires on the
+ * server and nothing fills, so the countdown is information, not pressure.
+ */
+const SIGNIN_WAIT_MS = 3 * 60 * 1000;
+
+function siteOf(origin) {
+  try {
+    const u = new URL(origin);
+    return u.port ? `${u.hostname}:${u.port}` : u.hostname;
+  } catch {
+    return origin;
+  }
+}
+
+function renderSignins() {
+  const stack = $('#signin-stack');
+  clear(stack);
+  for (const r of state.loginRequests) {
+    const created = parseDbTime(r.created_at);
+    const left = created ? Math.max(0, SIGNIN_WAIT_MS - (Date.now() - created.getTime())) : SIGNIN_WAIT_MS;
+    const mins = Math.floor(left / 60000);
+    const secs = String(Math.floor((left % 60000) / 1000)).padStart(2, '0');
+
+    const settle = async (fn) => {
+      for (const b of card.querySelectorAll('button')) b.disabled = true;
+      try {
+        await fn();
+      } catch (err) {
+        note.textContent = err.message;
+        for (const b of card.querySelectorAll('button')) b.disabled = false;
+        return;
+      }
+      state.loginRequests = state.loginRequests.filter((x) => x.id !== r.id);
+      renderSignins();
+    };
+
+    const deny = el('button', { class: 'ghost-btn', type: 'button' }, 'Deny');
+    deny.onclick = () => settle(() => api.denyLogin(r.id));
+    const always = el('button', { class: 'ghost-btn', type: 'button' }, 'Always for this site');
+    always.onclick = () => settle(() => api.allowLogin(r.id, true));
+    const once = el('button', { class: 'solid-btn', type: 'button' }, 'Allow once');
+    once.onclick = () => settle(() => api.allowLogin(r.id, false));
+
+    const note = el('p', { class: 'signin-note' });
+    note.textContent = `Your password is filled in by MyBot, never shown to the bot. Expires in ${mins}:${secs}.`;
+
+    const line = el('p');
+    line.append(el('span', { class: 'signin-site' }, siteOf(r.origin)), ` as ${r.username}`);
+
+    const card = el(
+      'div',
+      { class: 'signin-card', role: 'alertdialog', 'aria-label': `${r.bot} wants to sign in` },
+      el('div', { class: 'signin-copy' }, el('h3', null, `${r.bot} wants to sign in`), line, note),
+      el('div', { class: 'signin-actions' }, deny, always, once),
+    );
+    stack.append(card);
+  }
+  // Lets an open sheet make room for the ask instead of being covered by it.
+  document.body.classList.toggle('signin-pending', state.loginRequests.length > 0);
+}
+
+// The countdown only needs to be roughly right; a second-by-second redraw of
+// a card nobody is looking at would be wasted work.
+setInterval(() => {
+  if (state.loginRequests.length) renderSignins();
+}, 1000);
+
+function notifySignin(r) {
+  if (!('Notification' in window)) return;
+  const show = () =>
+    new Notification(`${r.bot} wants to sign in`, { body: `${siteOf(r.origin)} as ${r.username}`, tag: r.id });
+  if (Notification.permission === 'granted') show();
+  else if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then((p) => p === 'granted' && show());
+  }
+}
+
+// ── saved logins ────────────────────────────────────────────────────────
+
+$('#nav-logins').onclick = () => void openLogins();
+
+async function openLogins() {
+  $('#list-title').textContent = 'Saved logins';
+  const body = $('#list-body');
+  clear(body);
+  body.append(el('p', { class: 'muted' }, 'Loading…'));
+  openSheet('#list-sheet');
+
+  const res = await api.logins().catch((e) => ({ locked: true, logins: [], error: e.message }));
+  clear(body);
+
+  body.append(
+    el(
+      'p',
+      { class: 'muted' },
+      'A bot can sign in with these after you approve each use. Passwords are encrypted on this machine, ' +
+        'only ever filled on the exact site they were saved for, and never shown to a bot or sent to a model.',
+    ),
+  );
+
+  if (res.locked) {
+    body.append(
+      el(
+        'p',
+        { class: 'form-error' },
+        res.error ??
+          'Saved logins are locked. Start MyBot with your vault passphrase (MYBOT_PASSPHRASE), or add them in a terminal with: mybot logins add <site>',
+      ),
+    );
+    return;
+  }
+
+  const list = el('div');
+  if (!res.logins.length) list.append(el('p', { class: 'muted' }, 'No logins saved yet.'));
+  for (const l of res.logins) {
+    const always = el('button', { class: 'card-action', type: 'button', title: 'Fill without asking each time' },
+      l.alwaysAllow ? 'Always' : 'Ask');
+    if (l.alwaysAllow) always.dataset.on = 'true';
+    always.onclick = async () => {
+      await api.setLoginAlways(l.id, !l.alwaysAllow).catch(() => {});
+      void openLogins();
+    };
+    const remove = el('button', { class: 'card-action', type: 'button' }, 'Remove');
+    remove.onclick = async () => {
+      if (!confirm(`Remove the saved login for ${l.username} on ${siteOf(l.origin)}?`)) return;
+      await api.removeLogin(l.id).catch(() => {});
+      void openLogins();
+    };
+    const who = el('div', { class: 'login-who' },
+      el('div', { class: 'login-site' }, l.label ? `${l.label} · ${siteOf(l.origin)}` : siteOf(l.origin)),
+      el('div', { class: 'login-user' }, l.username),
+    );
+    list.append(el('div', { class: 'login-row' }, who, always, remove));
+  }
+  body.append(list);
+
+  // Add form. The server only accepts this from the machine itself, so a phone
+  // never sends a password across the wifi.
+  const url = el('input', { required: true, placeholder: 'https://github.com/login', autocomplete: 'off', inputmode: 'url' });
+  const user = el('input', { required: true, placeholder: 'you@example.com', autocomplete: 'off' });
+  const pass = el('input', { required: true, type: 'password', autocomplete: 'new-password' });
+  const label = el('input', { placeholder: 'Work GitHub', autocomplete: 'off' });
+  const err = el('p', { class: 'form-error', hidden: true });
+  const save = el('button', { class: 'solid-btn', type: 'submit' }, 'Save login');
+
+  const form = el(
+    'form',
+    { class: 'form' },
+    el('label', null, 'Sign-in page', url),
+    el('label', null, 'Username or email', user),
+    el('label', null, 'Password', pass),
+    el('label', null, el('span', null, 'Label ', el('span', { class: 'opt' }, 'optional')), label),
+    el('div', { class: 'form-actions' }, save),
+    err,
+  );
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    save.disabled = true;
+    err.hidden = true;
+    try {
+      await api.addLogin({ url: url.value, username: user.value, password: pass.value, label: label.value });
+      pass.value = '';
+      void openLogins();
+    } catch (e) {
+      pass.value = '';
+      err.textContent = e.message;
+      err.hidden = false;
+      save.disabled = false;
+    }
+  });
+
+  body.append(el('div', { class: 'logins-add' }, el('h3', null, 'Add a login'), form));
+}
+
 // ── files the bots produced ─────────────────────────────────────────────
 
 $('#nav-files').onclick = async () => {
@@ -1050,6 +1233,16 @@ subscribe('/api/stream', {
 
     push(entryNode(entry, live));
   },
+  login_request: (r) => {
+    if (state.loginRequests.some((x) => x.id === r.id)) return;
+    state.loginRequests.push(r);
+    notifySignin(r);
+    renderSignins();
+  },
+  login_settled: (r) => {
+    state.loginRequests = state.loginRequests.filter((x) => x.id !== r.id);
+    renderSignins();
+  },
   task: () => void refreshBots(),
   result: (r) => {
     setRunning(false);
@@ -1075,12 +1268,14 @@ subscribe('/api/stream', {
     state.bots = st.bots ?? [];
     state.paused = st.paused ?? [];
     state.computer = st.computer ?? null;
+    state.loginRequests = st.loginRequests ?? [];
   } else {
     state.bots = await api.bots().catch(() => []);
   }
 
   renderRoster();
   renderComputer();
+  renderSignins();
 
   // On a phone the roster IS the screen — auto-opening a thread means every
   // launch starts inside a conversation you did not pick, one back-tap from

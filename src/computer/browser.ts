@@ -49,7 +49,10 @@ async function wsEndpoint(port: number): Promise<string> {
 
 export async function connect(): Promise<BrowserContext> {
   if (context) return context;
-  browser = await chromium.connectOverCDP(await wsEndpoint(activeCdpPort()));
+  // MYBOT_CDP_PORT drives a Chromium you started yourself instead of the
+  // container's — the browser tests use it, and so can debugging.
+  const port = process.env.MYBOT_CDP_PORT ? Number(process.env.MYBOT_CDP_PORT) : activeCdpPort();
+  browser = await chromium.connectOverCDP(await wsEndpoint(port));
   context = browser.contexts()[0] ?? (await browser.newContext());
   return context;
 }
@@ -114,6 +117,10 @@ export async function snapshot(maxTextChars = 6000): Promise<Snapshot> {
 
       const label = (el: Element): string => {
         const e = el as HTMLElement & { value?: string; placeholder?: string; type?: string };
+        // A password field's value is never a label. Without this, a field with
+        // no name or placeholder fell through to `.value`, and the next
+        // page_read after a saved login was filled sent the password to the model.
+        const secret = e instanceof HTMLInputElement && e.type === 'password';
         const raw =
           e.getAttribute('aria-label') ||
           e.getAttribute('placeholder') ||
@@ -121,7 +128,7 @@ export async function snapshot(maxTextChars = 6000): Promise<Snapshot> {
           e.getAttribute('title') ||
           e.getAttribute('alt') ||
           (e.innerText || '').trim() ||
-          e.value ||
+          (secret ? '' : e.value) ||
           '';
         return raw.replace(/\s+/g, ' ').trim().slice(0, 80);
       };
@@ -185,6 +192,90 @@ export async function type(ref: number, text: string, submit = false): Promise<s
     await settle(page);
   }
   return `typed into [${ref}]${submit ? ' and pressed Enter' : ''}`;
+}
+
+/**
+ * Fill a saved login into the page. Called only by the fill_login tool, after
+ * the human approved it.
+ *
+ * Re-checks everything against the live DOM at the moment of filling rather
+ * than trusting the snapshot the request was made from — the human may have
+ * taken minutes to answer, and the page may have navigated in that time:
+ *   - the top-level page must still be on `origin`
+ *   - the password ref must be a real <input type=password>, not something whose
+ *     *label* says "password"
+ *   - the username ref, if any, must be a plain text / email / tel input
+ *
+ * Errors are rethrown as fixed strings. Nothing here may ever put a value in an
+ * error message, because error messages become tool results.
+ */
+export class FillError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FillError';
+  }
+}
+
+export async function fillCredential(opts: {
+  origin: string;
+  /** Omitted on the first page of a two-step sign-in, which asks for the username alone. */
+  passwordRef?: number;
+  usernameRef?: number;
+  username: string;
+  password: string;
+  submit?: boolean;
+}): Promise<{ submitted: boolean }> {
+  if (opts.passwordRef === undefined && opts.usernameRef === undefined) {
+    throw new FillError('Give the ref of the password field, the username field, or both.');
+  }
+  const page = await activePage();
+
+  const here = await page.evaluate(() => location.origin).catch(() => '');
+  if (here !== opts.origin) {
+    throw new FillError(`The page is no longer on ${opts.origin}. Nothing was filled.`);
+  }
+
+  const resolve = async (ref: number) => {
+    const loc = locate(page, ref);
+    if ((await loc.count()) === 0) {
+      throw new FillError(`No element with ref ${ref}. Take a fresh page_read. Nothing was filled.`);
+    }
+    return loc.first();
+  };
+
+  let pw;
+  if (opts.passwordRef !== undefined) {
+    pw = await resolve(opts.passwordRef);
+    const kind = await pw.evaluate((e) => (e instanceof HTMLInputElement ? e.type : '')).catch(() => '');
+    if (kind !== 'password') {
+      throw new FillError(`Ref ${opts.passwordRef} is not a password field. Nothing was filled.`);
+    }
+  }
+
+  let user;
+  if (opts.usernameRef !== undefined) {
+    user = await resolve(opts.usernameRef);
+    const kind = await user
+      .evaluate((e) => (e instanceof HTMLInputElement ? e.type || 'text' : e.tagName.toLowerCase()))
+      .catch(() => '');
+    if (!['text', 'email', 'tel', 'search'].includes(kind)) {
+      throw new FillError(`Ref ${opts.usernameRef} is not a username or email field. Nothing was filled.`);
+    }
+  }
+
+  try {
+    if (user) await user.fill(opts.username, { timeout: 15_000 });
+    if (pw) await pw.fill(opts.password, { timeout: 15_000 });
+    if (opts.submit) {
+      await (pw ?? user)!.press('Enter');
+      await settle(page);
+    }
+  } catch {
+    // Deliberately drops the original error: Playwright's messages can quote
+    // the call that failed, and that call carried the password.
+    throw new FillError('The browser would not accept the login in those fields. Nothing more was attempted.');
+  }
+  return { submitted: Boolean(opts.submit) };
 }
 
 export async function pressKey(key: string): Promise<string> {

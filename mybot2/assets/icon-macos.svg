@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- The MyBot icon (icon.svg) on Apple's icon grid: an 824 px tile centred
+       in a 1024 px canvas, so it sits at the same size as other Dock icons. -->
+  <g transform="translate(100 100) scale(1.609375)">
+    <rect width="512" height="512" rx="114" fill="#0A0A0A"/>
+    <rect x="106.0" y="111.4" width="300.0" height="289.3" rx="103.6" fill="#FAFAFA"/><rect x="209.9" y="183.5" width="35.7" height="89.3" rx="17.9" fill="#0E0E0E"/><rect x="302.4" y="179.0" width="39.3" height="98.2" rx="19.6" fill="#0E0E0E"/>
+  </g>
+</svg>

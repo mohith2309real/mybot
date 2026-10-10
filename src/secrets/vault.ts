@@ -25,7 +25,7 @@ const IV_LEN = 12;
 
 type KeyMap = Partial<Record<ProviderName, string>>;
 
-interface VaultFile {
+export interface VaultFile {
   v: 1;
   salt: string;
   iv: string;
@@ -47,15 +47,8 @@ export function vaultPath(): string {
 
 export function readVault(passphrase: string): KeyMap {
   if (!vaultExists()) return {};
-
-  const file: VaultFile = JSON.parse(readFileSync(VAULT_PATH, 'utf8'));
-  const salt = Buffer.from(file.salt, 'base64');
-  const decipher = createDecipheriv('aes-256-gcm', deriveKey(passphrase, salt), Buffer.from(file.iv, 'base64'));
-  decipher.setAuthTag(Buffer.from(file.tag, 'base64'));
-
   try {
-    const plain = Buffer.concat([decipher.update(Buffer.from(file.data, 'base64')), decipher.final()]);
-    return JSON.parse(plain.toString('utf8'));
+    return openSealed<KeyMap>(passphrase, JSON.parse(readFileSync(VAULT_PATH, 'utf8')));
   } catch {
     // GCM auth failure means wrong passphrase or a tampered file. Both are
     // "you can't read this", and distinguishing them leaks nothing useful.
@@ -64,23 +57,43 @@ export function readVault(passphrase: string): KeyMap {
 }
 
 export function writeVault(passphrase: string, keys: KeyMap): void {
-  mkdirSync(dirname(VAULT_PATH), { recursive: true, mode: 0o700 });
+  writeSealed(VAULT_PATH, passphrase, keys);
+}
 
+// --- sealing, shared with the saved-logins store -----------------------------
+
+/**
+ * Encrypt any JSON value under the passphrase. A fresh salt and IV every time,
+ * so rewriting the same content never produces the same file.
+ */
+export function seal(passphrase: string, value: unknown): VaultFile {
   const salt = randomBytes(SALT_LEN);
   const iv = randomBytes(IV_LEN);
   const cipher = createCipheriv('aes-256-gcm', deriveKey(passphrase, salt), iv);
-  const data = Buffer.concat([cipher.update(JSON.stringify(keys), 'utf8'), cipher.final()]);
-
-  const file: VaultFile = {
+  const data = Buffer.concat([cipher.update(JSON.stringify(value), 'utf8'), cipher.final()]);
+  return {
     v: 1,
     salt: salt.toString('base64'),
     iv: iv.toString('base64'),
     tag: cipher.getAuthTag().toString('base64'),
     data: data.toString('base64'),
   };
+}
 
-  writeFileSync(VAULT_PATH, JSON.stringify(file), { mode: 0o600 });
-  chmodSync(VAULT_PATH, 0o600);
+/** Throws on a wrong passphrase or a tampered file; callers word the error. */
+export function openSealed<T>(passphrase: string, file: VaultFile): T {
+  const salt = Buffer.from(file.salt, 'base64');
+  const decipher = createDecipheriv('aes-256-gcm', deriveKey(passphrase, salt), Buffer.from(file.iv, 'base64'));
+  decipher.setAuthTag(Buffer.from(file.tag, 'base64'));
+  const plain = Buffer.concat([decipher.update(Buffer.from(file.data, 'base64')), decipher.final()]);
+  return JSON.parse(plain.toString('utf8')) as T;
+}
+
+/** Seal and write with mode 0600, creating ~/.mybot at 0700 if needed. */
+export function writeSealed(path: string, passphrase: string, value: unknown): void {
+  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  writeFileSync(path, JSON.stringify(seal(passphrase, value)), { mode: 0o600 });
+  chmodSync(path, 0o600);
 }
 
 export function setKey(passphrase: string, provider: ProviderName, apiKey: string): void {

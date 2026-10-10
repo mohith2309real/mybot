@@ -334,6 +334,7 @@ export async function runSkill(opts: RunSkillOptions): Promise<SkillRunResult> {
 
   const result = await runTask({
     provider: opts.provider,
+    bot: opts.bot.name,
     model: opts.model ?? opts.bot.model,
     instruction,
     taskId: task.id,

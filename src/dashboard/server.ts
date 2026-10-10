@@ -38,6 +38,7 @@ import * as liveview from '../computer/liveview.ts';
 import { runTask } from '../agent/loop.ts';
 import * as remote from './remote.ts';
 import { bridge } from './wsproxy.ts';
+import * as logins from '../secrets/logins.ts';
 
 /**
  * The dashboard: a localhost operations console for the account's computer.
@@ -91,6 +92,45 @@ function authorised(req: IncomingMessage, url: URL, requireToken: boolean): bool
   const a = Buffer.from(String(supplied));
   const b = Buffer.from(pairingToken);
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/**
+ * Refuse requests a web page made on someone else's behalf.
+ *
+ * Loopback needs no token, so without this any site open in your browser could
+ * POST to the console — start a bot on a task of its choosing, or approve a
+ * sign-in. Two checks:
+ *   - Host must be one of ours. A DNS-rebinding page (evil.example resolving to
+ *     127.0.0.1) arrives with its own name in Host, and is refused.
+ *   - A state-changing request that carries an Origin must come from this same
+ *     host. Browsers always send Origin cross-site; local tools send none.
+ * WebSocket upgrades are held to the Origin rule too, because browsers do not
+ * apply CORS to them at all.
+ */
+function trustedRequest(req: IncomingMessage, upgrade = false): boolean {
+  const host = String(req.headers.host ?? '').toLowerCase();
+  if (host) {
+    const hostname = host.replace(/:\d+$/, '').replace(/^\[|\]$/g, '');
+    const ours = new Set(['127.0.0.1', 'localhost', '::1', lanAddress()]);
+    if (!ours.has(hostname)) return false;
+  }
+
+  const method = req.method ?? 'GET';
+  if (!upgrade && (method === 'GET' || method === 'HEAD' || method === 'OPTIONS')) return true;
+
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false; // "null" — sandboxed frames and file: pages
+  }
+}
+
+/** Only the machine itself may hand the console a password. */
+function fromLoopback(req: IncomingMessage): boolean {
+  const a = req.socket.remoteAddress ?? '';
+  return a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
 }
 
 export interface StartOptions {
@@ -153,6 +193,19 @@ function publish(event: string, data: unknown, taskId?: string): void {
     }
   }
 }
+
+function safePendingLogins(): logins.LoginRequest[] {
+  try {
+    return logins.pendingRequests();
+  } catch {
+    return [];
+  }
+}
+
+// Sign-in approvals reach the console the moment a bot asks, and clear the
+// moment anyone answers — here, from a phone, or from `mybot logins allow`.
+logins.events.on('requested', (r: logins.LoginRequest) => publish('login_request', r));
+logins.events.on('settled', (r: logins.LoginRequest) => publish('login_settled', r));
 
 // --- task execution --------------------------------------------------------
 
@@ -244,6 +297,7 @@ function launchTask(bot: Bot, instruction: string): Task {
       const provider = getProvider(bot.provider, vaultPassphrase);
       const result = await runTask({
         provider,
+        bot: bot.name,
         model: bot.model,
         instruction: briefed,
         history,
@@ -422,6 +476,7 @@ async function handleApi(
       paused: listPausedTasks().map(taskView),
       computer: status,
       running: [...activeRuns.keys()],
+      loginRequests: safePendingLogins(),
       counts: {
         tasks: listTasks().length,
         skills: listSkills().length,
@@ -699,6 +754,87 @@ async function handleApi(
     return true;
   }
 
+  // --- saved logins --------------------------------------------------------
+  //
+  // Summaries only: no response from this console ever contains a password.
+  // Adding one is loopback-only, so a paired phone on wifi never sends one over
+  // plain http. Approving and denying are fine from the phone — a yes carries
+  // no secret.
+
+  if (method === 'GET' && path === '/api/logins') {
+    const exists = logins.loginsExist();
+    if (!logins.isUnlocked()) {
+      sendJson(res, 200, { exists, locked: true, logins: [] });
+      return true;
+    }
+    try {
+      sendJson(res, 200, { exists, locked: false, logins: exists ? logins.listLogins() : [] });
+    } catch (err) {
+      sendJson(res, 200, { exists, locked: true, logins: [], error: err instanceof Error ? err.message : String(err) });
+    }
+    return true;
+  }
+
+  if (method === 'POST' && path === '/api/logins') {
+    if (!fromLoopback(req)) {
+      return bad(res, 'Add logins on the computer running MyBot, not over the network.', 403), true;
+    }
+    if (!logins.isUnlocked()) {
+      return bad(res, 'Saved logins are locked. Start MyBot with your vault passphrase, or use `mybot logins add`.', 409), true;
+    }
+    const body = (await readBody(req)) as Record<string, unknown>;
+    try {
+      const saved = logins.addLogin({
+        url: str(body.url),
+        username: str(body.username),
+        // Not trimmed: a password can legitimately start or end with a space.
+        password: typeof body.password === 'string' ? body.password : '',
+        label: str(body.label) || undefined,
+      });
+      publish('logins', { changed: true });
+      sendJson(res, 201, saved);
+    } catch (err) {
+      bad(res, err instanceof Error ? err.message : String(err));
+    }
+    return true;
+  }
+
+  if (seg[1] === 'logins' && seg[2]) {
+    if (!logins.isUnlocked()) return bad(res, 'Saved logins are locked.', 409), true;
+    try {
+      if (method === 'DELETE' && !seg[3]) {
+        sendJson(res, 200, { removed: logins.removeLogin(seg[2]) });
+        publish('logins', { changed: true });
+        return true;
+      }
+      if (method === 'POST' && seg[3] === 'always') {
+        const body = (await readBody(req)) as Record<string, unknown>;
+        sendJson(res, 200, { updated: logins.setAlwaysAllow(seg[2], body.always === true) });
+        publish('logins', { changed: true });
+        return true;
+      }
+    } catch (err) {
+      return bad(res, err instanceof Error ? err.message : String(err)), true;
+    }
+  }
+
+  if (method === 'GET' && path === '/api/login-requests') {
+    sendJson(res, 200, { pending: safePendingLogins(), recent: logins.recentRequests(30) });
+    return true;
+  }
+
+  if (method === 'POST' && seg[1] === 'login-requests' && seg[2] && (seg[3] === 'allow' || seg[3] === 'deny')) {
+    const body = (await readBody(req).catch(() => ({}))) as Record<string, unknown>;
+    try {
+      const r =
+        seg[3] === 'allow' ? logins.allow(seg[2], { always: body.always === true }) : logins.deny(seg[2]);
+      sendJson(res, 200, r);
+    } catch (err) {
+      bad(res, err instanceof Error ? err.message : String(err), 409);
+    }
+    return true;
+  }
+
   // --- skills --------------------------------------------------------------
 
   if (method === 'GET' && path === '/api/skills') {
@@ -858,6 +994,7 @@ function listen(server: Server, port: number, attemptsLeft: number): Promise<num
 
 export async function start(opts: StartOptions = {}): Promise<DashboardHandle> {
   vaultPassphrase = opts.passphrase;
+  logins.unlock(opts.passphrase);
 
   // Loopback unless explicitly opened up, and never open without a token.
   bindHost = opts.lan ? '0.0.0.0' : '127.0.0.1';
@@ -952,7 +1089,7 @@ async function unpair(): Promise<void> {
 function attachRemoteSocket(server: Server, requireToken: boolean): void {
   server.on('upgrade', (req, socket, _head) => {
     const url = new URL(req.url ?? '/', `http://${bindHost}`);
-    if (url.pathname !== '/api/remote/socket' || !authorised(req, url, requireToken)) {
+    if (url.pathname !== '/api/remote/socket' || !trustedRequest(req, true) || !authorised(req, url, requireToken)) {
       socket.destroy();
       return;
     }
@@ -964,6 +1101,12 @@ function attachRemoteSocket(server: Server, requireToken: boolean): void {
 function makeHandler(requireToken: boolean) {
   return (req: IncomingMessage, res: ServerResponse): void => {
     const url = new URL(req.url ?? '/', `http://${bindHost}`);
+
+    if (!trustedRequest(req)) {
+      res.writeHead(403, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'cross-site request refused' }));
+      return;
+    }
 
     if (!authorised(req, url, requireToken)) {
       res.writeHead(401, { 'content-type': 'application/json' });

@@ -1,0 +1,163 @@
+[[skill]]
+name = "Proofread a document"
+category = "Writing"
+description = "Fix spelling, grammar and punctuation without changing the voice."
+inputs = ["file"]
+instructions = """
+Read {{file}}. Fix spelling, grammar, punctuation and obvious typos. Do not change the meaning, tone or structure. Save the corrected version next to the original with a -proofread suffix, and list every change you made in a short changelog."""
+
+[[skill]]
+name = "Shorten text"
+category = "Writing"
+description = "Cut a piece of writing to a target length, keeping what matters."
+inputs = ["file", "target_words"]
+instructions = """
+Rewrite {{file}} to about {{target_words}} words. Keep the main point, the key facts and the call to action; cut repetition, hedges and filler. Save as a new file and report the before and after word counts."""
+
+[[skill]]
+name = "Change the tone"
+category = "Writing"
+description = "Rewrite text in a different tone."
+inputs = ["file", "tone"]
+instructions = """
+Rewrite {{file}} in a {{tone}} tone. Keep every fact and commitment the same. Save as a new file next to the original."""
+
+[[skill]]
+name = "Blog post draft"
+category = "Writing"
+description = "Research and draft a blog post."
+inputs = ["topic", "audience"]
+instructions = """
+Research {{topic}} from three good sources. Draft a 900–1200 word blog post for {{audience}}: a hook, 3–5 sections with subheadings, concrete examples, and a conclusion with a next step. Cite sources at the end. Save to /workspace/drafts/. Do not publish it."""
+safety = ["always-confirm: publishing or posting anything"]
+
+[[skill]]
+name = "Press release draft"
+category = "Writing"
+description = "Draft a press release from a few facts."
+inputs = ["news"]
+instructions = """
+Draft a press release announcing {{news}}: headline, subheadline, dateline, lead paragraph with who/what/when/where/why, a supporting paragraph, a quote placeholder marked [QUOTE], boilerplate, and media contact placeholder. Save to /workspace/drafts/press-release.md. Do not send it."""
+
+[[skill]]
+name = "Meeting notes cleanup"
+category = "Writing"
+description = "Turn rough meeting notes into clean minutes with action items."
+inputs = ["file"]
+instructions = """
+Read {{file}}. Produce clean minutes: attendees (if listed), decisions, discussion summary by topic, and an action-items table (owner, task, due date if mentioned). Do not invent owners or dates — mark them TBD. Save next to the original as -minutes.md."""
+
+[[skill]]
+name = "Executive summary"
+category = "Writing"
+description = "Write a one-paragraph executive summary of a long document."
+inputs = ["file"]
+instructions = """
+Read all of {{file}}. Write an executive summary of at most 150 words: the situation, the key finding or recommendation, and the decision needed. Then 3 bullets of supporting evidence. Save as -summary.md."""
+
+[[skill]]
+name = "Product description"
+category = "Writing"
+description = "Write a product description from specs."
+inputs = ["product", "specs"]
+instructions = """
+Write a product description for {{product}} using {{specs}}: a one-line hook, a short paragraph on who it is for, 5 benefit-led bullets, and the key specs in a table. Do not invent features. Save to /workspace/drafts/."""
+
+[[skill]]
+name = "Cover letter draft"
+category = "Writing"
+description = "Draft a cover letter matched to a job posting."
+inputs = ["job_url", "resume_file"]
+instructions = """
+Read the job posting at {{job_url}} and the resume in {{resume_file}}. Draft a cover letter under 350 words that connects three of the candidate's real achievements to the job's top requirements. Do not invent experience. Save to /workspace/drafts/cover-letter.md. Do not submit it anywhere."""
+safety = ["always-confirm: submitting an application"]
+
+[[skill]]
+name = "Resume tailoring"
+category = "Writing"
+description = "Suggest resume edits to fit a specific job."
+inputs = ["job_url", "resume_file"]
+instructions = """
+Compare {{resume_file}} with the posting at {{job_url}}. List the posting's key requirements and whether the resume shows each. Suggest specific bullet rewrites that surface relevant, true experience and keywords. Never add experience the candidate does not have."""
+
+[[skill]]
+name = "Translate a document"
+category = "Writing"
+description = "Translate a text file and keep its formatting."
+inputs = ["file", "language"]
+instructions = """
+Translate {{file}} into {{language}}, keeping headings, lists, links and formatting. Keep names, product names and code unchanged. Save as a new file with the language code in the name, and note any phrases that were hard to translate."""
+
+[[skill]]
+name = "FAQ from documentation"
+category = "Writing"
+description = "Write an FAQ from a product's documentation."
+inputs = ["docs_url"]
+instructions = """
+Read the documentation at {{docs_url}} (follow links one level deep). Write 12–20 frequently asked questions with short, accurate answers, each linking to the doc page it came from. Save to /workspace/drafts/faq.md."""
+
+[[skill]]
+name = "Speech or toast draft"
+category = "Writing"
+description = "Draft a short speech for an occasion."
+inputs = ["occasion", "details"]
+instructions = """
+Draft a 2–3 minute speech for {{occasion}} using {{details}}. Warm, specific, with one short story and a clear ending. Mark places for the speaker to personalize with [brackets]. Save to /workspace/drafts/speech.md."""
+
+[[skill]]
+name = "Headline options"
+category = "Writing"
+description = "Write headline options for a piece."
+inputs = ["file"]
+instructions = """
+Read {{file}} and write 15 headline options in different styles (plain, curiosity, number, question, benefit). Keep each under 70 characters and accurate to the content. Mark your top 3."""
+
+[[skill]]
+name = "Outline a long document"
+category = "Writing"
+description = "Produce a detailed outline before writing."
+inputs = ["topic", "length"]
+instructions = """
+Research {{topic}} briefly and write a detailed outline for a {{length}} piece: sections, subsections, the key point of each, and the evidence or examples to use. Save to /workspace/drafts/outline.md."""
+
+[[skill]]
+name = "Plain-language rewrite"
+category = "Writing"
+description = "Rewrite jargon-heavy text so anyone can follow it."
+inputs = ["file"]
+instructions = """
+Rewrite {{file}} in plain language: short sentences, common words, active voice, terms defined on first use. Keep it accurate. Report the reading-grade estimate before and after (use the text_readability action)."""
+
+[[skill]]
+name = "Newsletter draft"
+category = "Writing"
+description = "Draft a newsletter issue from links and notes."
+inputs = ["notes_file"]
+instructions = """
+Read {{notes_file}} and visit each link in it. Draft a newsletter: a short intro, 4–8 items each with a headline, two-sentence summary and link, and a sign-off. Save to /workspace/drafts/newsletter.md. Do not send it."""
+safety = ["always-confirm: sending a newsletter or email"]
+
+[[skill]]
+name = "Bio writer"
+category = "Writing"
+description = "Write short, medium and long professional bios."
+inputs = ["resume_file"]
+instructions = """
+From {{resume_file}}, write three professional bios in third person: 50, 120 and 250 words. Use only facts in the file. Save to /workspace/drafts/bios.md."""
+
+[[skill]]
+name = "Style guide check"
+category = "Writing"
+description = "Check a document against a style guide."
+inputs = ["file", "guide_file"]
+instructions = """
+Read the style guide {{guide_file}}, then check {{file}} against it. List each violation with the line, the rule, and a suggested fix. Do not edit the file; report only."""
+
+[[skill]]
+name = "Thank-you note"
+category = "Writing"
+description = "Draft a thank-you note."
+inputs = ["recipient", "reason"]
+instructions = """
+Draft a sincere, specific thank-you note to {{recipient}} for {{reason}}, 80–150 words. Save to /workspace/drafts/. Do not send it."""
+safety = ["always-confirm: sending a message"]

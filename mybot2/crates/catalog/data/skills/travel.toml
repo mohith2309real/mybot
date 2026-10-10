@@ -1,0 +1,102 @@
+[[skill]]
+name = "Flight search"
+category = "Travel"
+description = "Find flight options without booking."
+inputs = ["from", "to", "dates"]
+sites = ["google-flights", "kayak"]
+instructions = """
+Search flights from {{from}} to {{to}} on {{dates}}. Report the 5 best options balancing price and duration: airline, times, stops, total price, baggage included. Note the cheapest and the fastest. Do not book."""
+safety = ["always-confirm: booking or paying"]
+
+[[skill]]
+name = "Hotel shortlist"
+category = "Travel"
+description = "Shortlist hotels for a stay."
+inputs = ["city", "dates", "budget"]
+instructions = """
+Find hotels in {{city}} for {{dates}} under {{budget}} per night. Shortlist 6 with price, rating, neighbourhood, distance to the centre, cancellation policy and a review highlight. Do not reserve."""
+safety = ["always-confirm: reserving or paying"]
+
+[[skill]]
+name = "Trip itinerary"
+category = "Travel"
+description = "Plan a day-by-day itinerary."
+inputs = ["destination", "days", "interests"]
+instructions = """
+Plan a {{days}}-day itinerary for {{destination}} around {{interests}}. Each day: morning, afternoon, evening, with travel times between places, opening hours and rough costs. Keep days realistic. Save to /workspace/travel/itinerary.md."""
+
+[[skill]]
+name = "Visa and entry requirements"
+category = "Travel"
+description = "Check entry requirements for a trip."
+inputs = ["nationality", "destination"]
+instructions = """
+From the destination's official government site and the traveller's foreign ministry, find entry requirements for a {{nationality}} citizen visiting {{destination}}: visa, passport validity, forms, fees and health rules. Link the official pages. Advise confirming with the embassy."""
+
+[[skill]]
+name = "Packing list"
+category = "Travel"
+description = "Make a packing list for a trip."
+inputs = ["destination", "dates", "activities"]
+instructions = """
+Check the weather forecast or climate for {{destination}} on {{dates}}. Write a packing list for {{activities}}, grouped by category, with the weather noted at the top. Save to /workspace/travel/packing.md."""
+
+[[skill]]
+name = "Check in for a flight"
+category = "Travel"
+description = "Open online check-in and stop before confirming."
+inputs = ["airline", "booking_ref", "last_name"]
+instructions = """
+Open {{airline}}'s online check-in, enter booking reference {{booking_ref}} and last name {{last_name}}. Go through the steps, reporting seat and baggage choices, and stop before final confirmation or any payment."""
+safety = ["always-confirm: confirming check-in, choosing paid seats or paying"]
+
+[[skill]]
+name = "Local transport guide"
+category = "Travel"
+description = "Explain how to get around a city."
+inputs = ["city"]
+instructions = """
+Explain public transport in {{city}}: the main options, tickets and passes with prices, the best app, how to get from the airport to the centre, and taxi or ride-share norms. Cite the official transit site."""
+
+[[skill]]
+name = "Restaurant reservations scout"
+category = "Travel"
+description = "Find restaurants with availability, without booking."
+inputs = ["city", "date", "party_size"]
+instructions = """
+Find well-reviewed restaurants in {{city}} with tables for {{party_size}} on {{date}}. List 6 with cuisine, price level, rating and available times. Do not reserve."""
+safety = ["always-confirm: making a reservation"]
+
+[[skill]]
+name = "Travel budget"
+category = "Travel"
+description = "Estimate the total cost of a trip."
+inputs = ["destination", "days", "style"]
+instructions = """
+Estimate the cost of {{days}} days in {{destination}} travelling {{style}}: flights, lodging, food, transport, activities, insurance. Give low/typical/high per category in a table, with sources for prices."""
+
+[[skill]]
+name = "Car rental comparison"
+category = "Travel"
+description = "Compare car rental offers."
+inputs = ["location", "dates"]
+instructions = """
+Compare car rentals at {{location}} for {{dates}}: company, car class, total price with fees, insurance included, deposit, mileage limits and pick-up location. Do not book."""
+safety = ["always-confirm: booking"]
+
+[[skill]]
+name = "Travel advisory check"
+category = "Travel"
+description = "Check current travel advisories for a destination."
+inputs = ["destination"]
+instructions = """
+Find the current official travel advisories for {{destination}} from at least two governments. Summarize the level, the regions affected and the main risks, with dates and links."""
+
+[[skill]]
+name = "Loyalty points summary"
+category = "Travel"
+description = "Summarize balances across travel loyalty programs."
+inputs = ["programs"]
+instructions = """
+Sign in (with fill_login) to each of {{programs}} and record the points balance, status level and any expiring points. Do not redeem or transfer anything."""
+safety = ["always-confirm: redeeming or transferring points"]

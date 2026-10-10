@@ -386,7 +386,8 @@ export function renderPolicyPrompt(ctx: PolicyContext): string {
 
   lines.push(
     '- Never typed by you in any mode: passwords, one-time codes, 2FA codes, card numbers.',
-    '  Those pause for a human, who completes that one field and hands control back.',
+    '  Sign in with fill_login (the human approves, MyBot fills a saved login). Codes and',
+    '  cards pause for a human, who completes that one field and hands control back.',
     '- Never run in any mode: commands that destroy a system or a disk. Ask the human instead.',
   );
 

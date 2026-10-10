@@ -1,0 +1,47 @@
+[package]
+name = "mybot-app"
+description = "MyBot 2.0 — the desktop app and command line"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "mybot2"
+path = "src/main.rs"
+
+[dependencies]
+mybot-core.workspace = true
+mybot-vault.workspace = true
+mybot-computer.workspace = true
+mybot-actions.workspace = true
+mybot-catalog.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+async-trait.workspace = true
+rpassword.workspace = true
+zeroize.workspace = true
+regex.workspace = true
+dirs.workspace = true
+reqwest.workspace = true
+sha2.workspace = true
+hex.workspace = true
+base64.workspace = true
+# Already in the tree through rustls; verifies update signatures (Ed25519).
+ring = "0.17"
+clap = { version = "4", features = ["derive"] }
+eframe = { version = "0.36", default-features = false, features = ["glow", "default_fonts", "x11", "wayland", "persistence"] }
+egui = "0.36"
+
+[build-dependencies]
+# Puts the MyBot icon on mybot2.exe (only does anything when building for Windows).
+embed-resource = "3"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_System_Console"] }

@@ -1,0 +1,205 @@
+[[skill]]
+name = "Summarize a web page"
+category = "Research"
+description = "Read one page and write a short summary with the key facts."
+inputs = ["url"]
+instructions = """
+Open {{url}} and read the whole page, scrolling until the end. Write a summary: one sentence with the gist, then 3–7 bullets with the key facts, figures and dates. Do not quote more than one sentence verbatim. Save it to /workspace/summaries/ as a .md file named after the page title, and report the path and the summary."""
+
+[[skill]]
+name = "Compare products"
+category = "Research"
+description = "Compare several products side by side on price and features."
+inputs = ["products", "criteria"]
+instructions = """
+For each product in {{products}}, find its official page and one independent review. Collect price, the criteria in {{criteria}}, and anything notable (warranty, availability). Build a Markdown comparison table, then a short recommendation that says which fits which kind of buyer. Note the date you checked prices. Save to /workspace/research/comparison.md."""
+safety = ["Do not buy, add to cart, or sign up for anything."]
+
+[[skill]]
+name = "Find competitors"
+category = "Research"
+description = "List a company's main competitors with one line on each."
+inputs = ["company"]
+instructions = """
+Search for {{company}} and its market. Identify 5–10 direct competitors from industry lists, review sites and news. For each: name, website, what they sell, how they differ from {{company}}, and a rough size signal (funding, employees or customers) when published. Cite the source for each claim. Save to /workspace/research/competitors.md."""
+
+[[skill]]
+name = "Literature scan"
+category = "Research"
+description = "Find recent papers or articles on a topic and summarize each."
+inputs = ["topic"]
+instructions = """
+Search scholarly sources (Google Scholar, arXiv, PubMed, Semantic Scholar) for recent work on {{topic}}. Pick the 8 most relevant from the last three years. For each: title, authors, year, link, and a two-sentence summary of the finding. End with three themes that recur. Save to /workspace/research/literature.md."""
+
+[[skill]]
+name = "Fact check a claim"
+category = "Research"
+description = "Check a claim against primary sources and give a verdict."
+inputs = ["claim"]
+instructions = """
+Find the original source of the claim "{{claim}}" and at least two independent primary sources (official statistics, court records, the original paper, the company's filing). Give a verdict — supported, partly supported, unsupported, or false — and explain why in plain language, with links. Say clearly if the evidence is thin."""
+
+[[skill]]
+name = "Company profile"
+category = "Research"
+description = "Build a one-page profile of a company."
+inputs = ["company"]
+instructions = """
+Research {{company}}: what it does, founding year, headquarters, leadership, size, funding or public financials, main products, recent news (last 6 months), and controversies if any. Prefer the company's own site, filings and reputable press. Write it as a one-page profile with sources and save to /workspace/research/{{company}}.md."""
+
+[[skill]]
+name = "Person background (public)"
+category = "Research"
+description = "Summarize a public figure's professional background from public sources."
+inputs = ["person"]
+instructions = """
+Using only public professional sources (company bios, conference talks, published interviews, LinkedIn public profile), summarize {{person}}'s current role, past roles and notable public work. Do not search for home addresses, family members, phone numbers or other private details, and do not combine sources to locate where someone lives."""
+safety = ["Only professional, public information. Never personal contact details or locations."]
+
+[[skill]]
+name = "Market size estimate"
+category = "Research"
+description = "Estimate a market's size from published figures, with the method shown."
+inputs = ["market"]
+instructions = """
+Find published market-size figures for {{market}} from analyst reports, government data and company filings. Record each figure with its year, source and definition. Then give a range, explain why sources differ, and show a simple bottom-up sanity check. Save to /workspace/research/market-size.md."""
+
+[[skill]]
+name = "Collect reviews"
+category = "Research"
+description = "Gather and summarize customer reviews for a product or service."
+inputs = ["product"]
+instructions = """
+Find reviews of {{product}} on at least three sites. Collect up to 30 reviews (rating, date, short excerpt). Summarize common praise and common complaints with counts, and flag any signs of fake reviews (bursts, identical wording). Save raw reviews to /workspace/research/reviews.csv and the summary to reviews.md."""
+
+[[skill]]
+name = "Explain a topic simply"
+category = "Research"
+description = "Research a topic and explain it for a beginner."
+inputs = ["topic"]
+instructions = """
+Read three good introductions to {{topic}} (an encyclopedia entry, an expert explainer, and a recent article). Write an explanation a curious 15-year-old could follow: what it is, why it matters, a concrete example, common misconceptions, and where to learn more. Keep it under 600 words."""
+
+[[skill]]
+name = "Pros and cons"
+category = "Research"
+description = "Research a decision and lay out the pros and cons."
+inputs = ["decision"]
+instructions = """
+Research the decision "{{decision}}" from several perspectives. List the strongest pros and cons, each with a source or reasoning, the main unknowns, and the questions worth answering before deciding. Do not make the decision; lay it out."""
+
+[[skill]]
+name = "Find statistics"
+category = "Research"
+description = "Find reliable statistics on a subject, with sources."
+inputs = ["subject"]
+instructions = """
+Find the most recent reliable statistics on {{subject}} from official or primary sources. For each number give the value, unit, date, geography and source link. Prefer national statistics offices, international bodies and peer-reviewed work over blogs. Put them in a table in /workspace/research/stats.md."""
+
+[[skill]]
+name = "Monitor a page for changes"
+category = "Research"
+description = "Snapshot a page and report what changed since last time."
+inputs = ["url"]
+instructions = """
+Open {{url}} and save its visible text to /workspace/monitor/<slug>-latest.txt. If a previous snapshot exists, compare them and report additions and removals in plain language, ignoring timestamps and counters. Then keep the new snapshot as the baseline. Best run as a routine."""
+
+[[skill]]
+name = "Patent search"
+category = "Research"
+description = "Search patents related to an idea and summarize the closest ones."
+inputs = ["idea"]
+instructions = """
+Search Google Patents and Espacenet for {{idea}}. Find the 5–10 closest patents or applications. For each: number, title, assignee, date, status if shown, and one sentence on how it relates. This is not legal advice; say so at the top. Save to /workspace/research/patents.md."""
+
+[[skill]]
+name = "Grant and funding finder"
+category = "Research"
+description = "Find open grants or funding programs that fit a project."
+inputs = ["project", "location"]
+instructions = """
+Search for grants, fellowships and funding programs open to {{project}} in {{location}}. For each: funder, program, amount, eligibility, deadline and link. Only include programs with deadlines in the future. Sort by deadline and save to /workspace/research/funding.md."""
+
+[[skill]]
+name = "Event finder"
+category = "Research"
+description = "Find upcoming events on a topic in a place."
+inputs = ["topic", "location"]
+instructions = """
+Find conferences, meetups and talks about {{topic}} in or near {{location}} in the next three months. List name, date, venue, price and link. Do not register for anything."""
+safety = ["Do not register, RSVP or buy tickets."]
+
+[[skill]]
+name = "Wikipedia digest"
+category = "Research"
+description = "Turn a Wikipedia article into a structured digest."
+inputs = ["article"]
+instructions = """
+Open the Wikipedia article on {{article}}. Produce: a 3-sentence overview, a timeline of key dates, key people or entities, and the 5 most useful references from its bibliography. Save to /workspace/research/wiki-{{article}}.md."""
+
+[[skill]]
+name = "Source list"
+category = "Research"
+description = "Build an annotated list of the best sources on a subject."
+inputs = ["subject"]
+instructions = """
+Find the 10 best sources on {{subject}}: books, papers, official guides and high-quality articles. For each give the citation, link, type, and one line on why it is worth reading. Prefer primary and authoritative sources."""
+
+[[skill]]
+name = "Price history check"
+category = "Research"
+description = "Check whether a product's current price is a good deal."
+inputs = ["product"]
+instructions = """
+Find the current price of {{product}} at three major retailers and look for its price history (CamelCamelCamel, Keepa, PriceRunner or the retailer's own history). Report the current lowest price, the typical price and the historical low, and say whether now looks like a good time to buy."""
+safety = ["Do not buy or add to cart."]
+
+[[skill]]
+name = "Regulation lookup"
+category = "Research"
+description = "Find what rules apply to an activity in a jurisdiction."
+inputs = ["activity", "jurisdiction"]
+instructions = """
+Find the official rules governing {{activity}} in {{jurisdiction}} from government or regulator websites. Summarize the main requirements, permits, deadlines and fees, with links to the official text. State plainly that this is not legal advice."""
+
+[[skill]]
+name = "News timeline"
+category = "Research"
+description = "Build a dated timeline of a news story."
+inputs = ["story"]
+instructions = """
+Search reputable news sources for {{story}}. Build a chronological timeline: date, what happened, source link. Note where sources disagree. End with the current status as of today."""
+
+[[skill]]
+name = "Tool or app recommendation"
+category = "Research"
+description = "Find the best tools for a job and compare them."
+inputs = ["job"]
+instructions = """
+Find software tools for {{job}}. Shortlist 5 based on reviews and adoption. Compare price, platforms, key features, limits of the free tier, and privacy policy notes. Recommend one for an individual and one for a small team."""
+safety = ["Do not sign up for trials."]
+
+[[skill]]
+name = "Domain name ideas"
+category = "Research"
+description = "Brainstorm domain names and check which are available."
+inputs = ["business"]
+instructions = """
+Brainstorm 20 short, memorable domain names for {{business}}. Check availability for the best 10 using a registrar's search page. Report which are available and at what first-year price. Do not purchase anything."""
+safety = ["always-confirm: buying or registering a domain"]
+
+[[skill]]
+name = "Academic paper explainer"
+category = "Research"
+description = "Explain a research paper in plain language."
+inputs = ["paper_url"]
+instructions = """
+Open {{paper_url}} (or its abstract page). Explain: the question, the method, the main result with numbers, limitations the authors mention, and why it matters. Avoid jargon or define it. Under 500 words."""
+
+[[skill]]
+name = "Local business finder"
+category = "Research"
+description = "Find well-reviewed local businesses of a type."
+inputs = ["type", "location"]
+instructions = """
+Find {{type}} businesses in {{location}} with good ratings on two review sites. List the top 8 with name, rating, number of reviews, price level, address and hours. Flag anything with recent negative trends."""

@@ -879,3 +879,66 @@ details.think > summary:hover { color: var(--text-3); }
 /* noVNC injects its own canvas; it needs a sized, black box to live in. */
 #mac-screen { background: #000; }
 #mac-screen canvas { display: block; }
+
+/* ── sign-in approvals ──────────────────────────────────────────────── */
+
+.signin-stack {
+  position: fixed;
+  top: calc(14px + env(safe-area-inset-top));
+  right: 14px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(380px, calc(100vw - 28px));
+  pointer-events: none;
+}
+.signin-card {
+  pointer-events: auto;
+  padding: 14px 14px 12px;
+  border: 1px solid var(--accent-edge);
+  border-radius: 14px;
+  background: var(--bg, var(--panel));
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.28);
+  animation: rise 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.signin-card h3 { margin: 0 0 3px; font-size: 14px; font-weight: 600; color: var(--accent); }
+.signin-card p { margin: 0; font-size: 13px; color: var(--text-2); overflow-wrap: anywhere; }
+.signin-card .signin-site { color: var(--text); font-weight: 560; }
+.signin-card .signin-note { margin-top: 6px; font-size: 11.5px; color: var(--text-4); }
+.signin-actions { display: flex; gap: 8px; margin-top: 11px; flex-wrap: wrap; justify-content: flex-end; }
+.signin-actions button { flex: none; }
+
+.login-row { display: flex; align-items: center; gap: 10px; padding: 10px 2px; border-bottom: 1px solid var(--line-soft); }
+.login-row:last-child { border-bottom: 0; }
+.login-who { flex: 1; min-width: 0; }
+.login-site { font-size: 13.5px; color: var(--text); overflow-wrap: anywhere; }
+.login-user { font-size: 12px; color: var(--text-3); overflow-wrap: anywhere; }
+.login-row .card-action[data-on='true'] { color: var(--accent); border-color: var(--accent-edge); }
+.logins-add { margin-top: 18px; border-top: 1px solid var(--line-soft); padding-top: 6px; }
+.logins-add .form { padding-left: 0; padding-right: 0; }
+
+/* With a sheet open, the ask becomes a strip across the top and the sheet
+   moves down to make room — neither covers the other's buttons. */
+body.signin-pending:has(.sheet-scrim:not([hidden])) .signin-stack {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: min(780px, calc(100vw - 28px));
+}
+body.signin-pending:has(.sheet-scrim:not([hidden])) .signin-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+}
+body.signin-pending:has(.sheet-scrim:not([hidden])) .signin-copy { flex: 1; min-width: 180px; }
+body.signin-pending:has(.sheet-scrim:not([hidden])) .signin-note { display: none; }
+body.signin-pending:has(.sheet-scrim:not([hidden])) .signin-actions { margin-top: 0; }
+body.signin-pending .sheet-scrim { padding-top: 104px; }
+body.signin-pending .sheet { max-height: calc(100dvh - 136px); }
+@media (max-width: 560px) {
+  body.signin-pending .sheet-scrim { padding-top: 150px; }
+  body.signin-pending .sheet { max-height: calc(100dvh - 182px); }
+}

@@ -28,7 +28,7 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const DOCKER_DIR = join(HERE, '..', '..', 'docker');
 
-export const IMAGE = 'mybot-desktop:0.2';
+export const IMAGE = 'mybot-desktop:0.4'; // 0.4: the MyBot wallpaper on every desktop
 export const AGENTD_CONTAINER_PORT = 7000;
 
 /** Conversation id -> container name. Kept short; docker names dislike length. */

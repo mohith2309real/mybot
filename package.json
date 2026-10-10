@@ -13,7 +13,7 @@
   "scripts": {
     "mybot": "node src/cli.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node test/local.test.mjs && node test/skills.test.mjs && node test/policy.test.mjs && node test/teach.test.mjs && node test/wire.test.mjs && node test/wsproxy.test.mjs"
+    "test": "node test/local.test.mjs && node test/skills.test.mjs && node test/policy.test.mjs && node test/teach.test.mjs && node test/wire.test.mjs && node test/wsproxy.test.mjs && node test/logins.test.mjs && node test/console-logins.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

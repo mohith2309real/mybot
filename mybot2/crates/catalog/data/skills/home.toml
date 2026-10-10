@@ -1,0 +1,98 @@
+[[skill]]
+name = "Meal plan"
+category = "Home & Life"
+description = "Plan a week of meals with a shopping list."
+inputs = ["diet", "people"]
+instructions = """
+Plan 7 dinners (and simple lunches) for {{people}} people following {{diet}}. Reuse ingredients across meals. Produce the plan with links to recipes and a combined shopping list grouped by aisle. Save to /workspace/home/meals.md."""
+
+[[skill]]
+name = "Recipe scaler"
+category = "Home & Life"
+description = "Scale a recipe and convert units."
+inputs = ["recipe_url", "servings", "units"]
+instructions = """
+Open {{recipe_url}}, scale it to {{servings}} servings, and convert quantities to {{units}} units (unit_convert action). Keep the steps; adjust times only where scaling clearly changes them, with a note."""
+
+[[skill]]
+name = "Moving checklist"
+category = "Home & Life"
+description = "A dated checklist for moving home."
+inputs = ["move_date"]
+instructions = """
+Build a moving checklist counting back from {{move_date}}: 8 weeks, 4 weeks, 2 weeks, 1 week, moving day and after. Include address changes, utilities, and documents. Save to /workspace/home/moving.md."""
+
+[[skill]]
+name = "Utility provider comparison"
+category = "Home & Life"
+description = "Compare electricity, internet or similar providers."
+inputs = ["service", "location"]
+instructions = """
+Compare {{service}} providers in {{location}}: price, contract length, fees, speed or tariff details, and ratings. Do not switch or sign up."""
+safety = ["always-confirm: switching provider or signing a contract"]
+
+[[skill]]
+name = "Home maintenance schedule"
+category = "Home & Life"
+description = "A yearly maintenance calendar."
+inputs = ["home_type", "climate"]
+instructions = """
+Write a monthly maintenance schedule for a {{home_type}} in a {{climate}} climate (filters, gutters, smoke alarms, heating checks and so on), and export it as a CSV that a calendar can import."""
+
+[[skill]]
+name = "Appliance manual finder"
+category = "Home & Life"
+description = "Find the manual for an appliance."
+inputs = ["model"]
+instructions = """
+Find the official manual for model {{model}} on the manufacturer's site, download the PDF to /workspace/home/manuals/, and summarize the troubleshooting section."""
+
+[[skill]]
+name = "Event planner"
+category = "Home & Life"
+description = "Plan a party or gathering."
+inputs = ["event", "guests", "budget"]
+instructions = """
+Plan {{event}} for {{guests}} guests within {{budget}}: timeline, venue or setup ideas, food and drink quantities, a shopping list and a day-of checklist. Do not book or buy."""
+safety = ["always-confirm: booking or buying"]
+
+[[skill]]
+name = "Pet care research"
+category = "Home & Life"
+description = "Research care needs for a pet."
+inputs = ["animal"]
+instructions = """
+Research care for a {{animal}} from veterinary and reputable sources: diet, exercise, health checks, common problems and costs. Advise consulting a vet for health questions."""
+
+[[skill]]
+name = "Plant care guide"
+category = "Home & Life"
+description = "Care instructions for houseplants."
+inputs = ["plants"]
+instructions = """
+For each plant in {{plants}}, give light, watering, humidity, soil and common problems, from horticultural sources, as a compact table."""
+
+[[skill]]
+name = "Renter's rights lookup"
+category = "Home & Life"
+description = "Find tenant rules where you live."
+inputs = ["location", "question"]
+instructions = """
+Find official tenant-rights information for {{location}} relevant to: {{question}}. Summarize with links to the official pages and tenant organizations. Not legal advice."""
+
+[[skill]]
+name = "Car maintenance lookup"
+category = "Home & Life"
+description = "Find the service schedule for a car."
+inputs = ["make_model_year"]
+instructions = """
+Find the manufacturer's maintenance schedule for {{make_model_year}}: services by mileage/time, fluids and tyre pressures. Cite the source."""
+
+[[skill]]
+name = "Charity research"
+category = "Home & Life"
+description = "Check a charity before donating."
+inputs = ["charity"]
+instructions = """
+Look up {{charity}} on charity regulators and evaluators: registration status, finances, programme spending ratio, and any warnings. Summarize. Do not donate."""
+safety = ["always-confirm: donating"]

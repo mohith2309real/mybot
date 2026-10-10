@@ -1,0 +1,20 @@
+[package]
+name = "mybot-catalog"
+description = "MyBot 2.0's built-in library: 200+ skills and 200+ site profiles, compiled into the binary"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+once_cell.workspace = true
+url.workspace = true
+zip = { version = "2", default-features = false, features = ["deflate"] }
+sha2.workspace = true
+hex.workspace = true
+regex.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

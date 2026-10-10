@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MyBot — AI teammates with their own computers</title>
+<meta name="description" content="A free desktop app for Mac, Windows and Linux. Message an AI teammate like a colleague: it works in its own browser and desktop, stops for you at passwords and 2-step codes, and asks before anything that matters. Runs on your Claude, GPT or Gemini.">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://mybot2.web.app/">
+<link rel="canonical" href="https://mybot2.web.app/">
+<meta property="og:title" content="MyBot — AI teammates with their own computers">
+<meta property="og:description" content="Message one like a colleague. It works in its own browser, and stops for you at passwords, 2-step codes and anything that matters.">
+<meta property="og:image" content="https://mybot2.web.app/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preload" href="fonts/selawkl.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="nav">
+  <a class="brand" href="#top" aria-label="MyBot home"><img src="wordmark.svg" alt="MyBot" width="96" height="31"></a>
+  <nav>
+    <a href="#faces">Faces</a>
+    <a href="#computer">Computer</a>
+    <a class="pill" href="#download">Download</a>
+  </nav>
+</header>
+
+<main id="top">
+
+  <!-- ── hero ─────────────────────────────────────────────────────────── -->
+  <section class="hero">
+    <p class="eyebrow reveal" data-release="label">MyBot 3 · free</p>
+    <h1 class="reveal">AI teammates<br>with their own computers.</h1>
+    <p class="lede reveal">Message one like a colleague. It works in its own browser while you watch, and stops for you at passwords, 2-step codes and anything that matters.</p>
+    <div class="cta reveal">
+      <a class="btn primary" id="cta" href="#download">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19.5h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span id="cta-label">Download MyBot</span>
+      </a>
+      <a class="btn ghost" href="#download">All platforms</a>
+    </div>
+    <p class="fine reveal" id="cta-fine">Mac · Windows · Linux. Bring your own Claude, GPT or Gemini.</p>
+
+    <!-- A roster at work: each face is drawn live, the same way the app draws it. -->
+    <div class="crew reveal" aria-label="Eight teammates' faces, animated">
+      <canvas data-face="0" data-mood="working"></canvas>
+      <canvas data-face="2" data-mood="idle"></canvas>
+      <canvas data-face="3" data-mood="working"></canvas>
+      <canvas data-face="1" data-mood="needs"></canvas>
+      <canvas data-face="4" data-mood="working"></canvas>
+      <canvas data-face="5" data-mood="done"></canvas>
+      <canvas data-face="6" data-mood="working"></canvas>
+      <canvas data-face="7" data-mood="idle"></canvas>
+    </div>
+  </section>
+
+  <figure class="window reveal">
+    <div class="titlebar"><i></i><i></i><i></i></div>
+    <img src="shots/conversation.png" alt="MyBot: a roster of teammates with their faces on the left, a conversation with Researcher in the middle" width="1440" height="910">
+  </figure>
+
+  <!-- ── features ─────────────────────────────────────────────────────── -->
+  <section class="feature reveal">
+    <div class="text">
+      <h2>It stops for you.</h2>
+      <p>CAPTCHAs, 2-step codes, card fields and checkout always wait for a person. It parks, says why, and shows the step right inside its computer. Do it, then <em>I'm done, continue</em>.</p>
+      <p class="quiet">Sending, posting, buying, paying and deleting wait for your OK too, unless your request already said to do it.</p>
+    </div>
+    <figure class="shot"><img loading="lazy" src="shots/needs-you.png" alt="Researcher needs you: the bank wants a 6-digit code, with I'm done, continue and Skip this step" width="1440" height="910"></figure>
+  </section>
+
+  <section class="feature flip reveal">
+    <div class="text">
+      <h2>Your passwords never reach the AI.</h2>
+      <p>Save a login once. When a teammate needs it, you decide: <em>Allow once</em>, <em>Always for this site</em>, or <em>Deny</em>. MyBot types the password into the page itself, and only on the site it was saved for.</p>
+    </div>
+    <figure class="shot"><img loading="lazy" src="shots/sign-in-request.png" alt="A sign-in request: Researcher wants to sign in to the bank, with Allow once, Always for this site and Deny" width="1440" height="910"></figure>
+  </section>
+
+  <!-- ── faces ────────────────────────────────────────────────────────── -->
+  <section class="faces" id="faces">
+    <h2 class="reveal">A face for every teammate.</h2>
+    <p class="sub reveal">Eight to pick from. Each one shows what it's doing, in its own way: reading, typing, thinking. Wide-eyed when it needs you; ^ ^ when it's done. Tap one to change its mood.</p>
+    <div class="face-grid reveal" id="face-grid"></div>
+  </section>
+
+  <!-- ── computer ─────────────────────────────────────────────────────── -->
+  <section class="computer" id="computer">
+    <div class="text reveal">
+      <h2>Its own computer.</h2>
+      <p>A real desktop and browser in Docker, one per teammate. Watch it live, and take its mouse and keyboard whenever you like. It even has its own wallpaper.</p>
+      <a class="link" href="mybot-wallpaper-4k.jpg" download>Get the wallpaper · 4K</a>
+    </div>
+    <figure class="screen reveal"><img loading="lazy" src="shots/teammate-desktop.png" alt="A teammate's desktop: a black wallpaper that says shhh... let's not leak our hard work" width="1440" height="900"></figure>
+  </section>
+
+  <section class="feature reveal">
+    <div class="text">
+      <h2>Teach it once.</h2>
+      <p>Do a task yourself in its browser and it becomes a skill it can repeat. Passwords and codes are never recorded. 245 skills are built in, and routines run them on a schedule: every morning at 8, weekdays at 9, the first of the month.</p>
+    </div>
+    <figure class="shot"><img loading="lazy" src="shots/skills.png" alt="The skills library: 245 built-in skills by category" width="1440" height="910"></figure>
+  </section>
+
+  <section class="strip reveal" aria-label="Models">
+    <p><span>Runs on</span> Claude <i>·</i> GPT <small>API key or ChatGPT sign-in</small> <i>·</i> Gemini</p>
+    <p class="nums"><span>249</span> actions <i>·</i> <span>245</span> skills <i>·</i> <span>300</span> known sites</p>
+  </section>
+
+  <section class="updates reveal">
+    <h2>Updates itself, and checks first.</h2>
+    <p>Every release is signed. MyBot checks the signature against its built-in key, and the download against the signed checksum, before it installs anything. Then it's one click: <em>Restart</em>.</p>
+  </section>
+
+  <!-- ── download ─────────────────────────────────────────────────────── -->
+  <section class="download" id="download">
+    <h2 class="reveal">Download MyBot</h2>
+    <p class="sub reveal"><span data-release="version">The latest release</span> · free · Apache-2.0</p>
+    <div class="cards">
+      <a class="card reveal" data-asset="macos-arm64" href="#download"><span class="os">macOS</span><span class="for">Apple silicon (M1 and later)</span><span class="meta">.tar.gz</span></a>
+      <a class="card reveal" data-asset="macos-x86_64" href="#download"><span class="os">macOS</span><span class="for">Intel</span><span class="meta">.tar.gz</span></a>
+      <a class="card reveal" data-asset="windows-x86_64" href="#download"><span class="os">Windows</span><span class="for">64-bit</span><span class="meta">.zip</span></a>
+      <a class="card reveal" data-asset="linux-x86_64" href="#download"><span class="os">Linux</span><span class="for">64-bit</span><span class="meta">.tar.gz</span></a>
+    </div>
+
+    <p class="needs reveal"><b>You also need Docker.</b> It runs each teammate's computer: Docker Desktop on Mac or Windows, Docker Engine on Linux.</p>
+
+    <div class="first reveal">
+      <h3>Opening it the first time</h3>
+      <p>These builds aren't signed by Apple or Microsoft yet, so your system warns you once.</p>
+      <details open><summary>Mac</summary><p>Unpack and move <code>MyBot.app</code> to Applications. Right-click it, choose <b>Open</b>, then <b>Open</b> again. If macOS still refuses, run <code>xattr -dr com.apple.quarantine /Applications/MyBot.app</code>.</p></details>
+      <details><summary>Windows</summary><p>Unzip and run <code>mybot2.exe</code>. If SmartScreen says “Windows protected your PC”, click <b>More info → Run anyway</b>.</p></details>
+      <details><summary>Linux</summary><p>Unpack and run <code>./mybot2</code>. The window needs X11 or Wayland; on Debian/Ubuntu: <code>sudo apt install libxkbcommon-x11-0 libgl1 libegl1</code>.</p></details>
+      <p class="sums" id="sums"></p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <img src="wordmark.svg" alt="MyBot" width="74" height="24">
+  <p>Free and open source. Made by Mohith.</p>
+</footer>
+
+<script src="site.js" defer></script>
+</body>
+</html>

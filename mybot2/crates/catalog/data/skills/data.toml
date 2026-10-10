@@ -1,0 +1,144 @@
+[[skill]]
+name = "Clean a CSV"
+category = "Data & Spreadsheets"
+description = "Fix common CSV problems."
+inputs = ["file"]
+instructions = """
+Inspect {{file}}: header issues, blank rows, duplicate rows, inconsistent dates, numbers stored as text, stray whitespace. Write a cleaned copy and a report of every fix with counts. Do not change the original."""
+
+[[skill]]
+name = "Summarize a spreadsheet"
+category = "Data & Spreadsheets"
+description = "Describe what a CSV contains."
+inputs = ["file"]
+instructions = """
+Read {{file}}. Report rows and columns, each column's type, missing values, and for numeric columns min, max, mean and median (csv_stats action). Point out anything odd. Keep it to one screen."""
+
+[[skill]]
+name = "Pivot table"
+category = "Data & Spreadsheets"
+description = "Group and total a CSV by a column."
+inputs = ["file", "group_by", "value"]
+instructions = """
+Group {{file}} by {{group_by}} and total {{value}} (count, sum, mean). Write the result as CSV and as a Markdown table sorted by sum."""
+
+[[skill]]
+name = "Join two CSVs"
+category = "Data & Spreadsheets"
+description = "Combine two tables on a shared column."
+inputs = ["left", "right", "key"]
+instructions = """
+Join {{left}} and {{right}} on {{key}} with python3. Report matched rows, rows only in left, rows only in right, and save the joined file. Warn about duplicate keys."""
+
+[[skill]]
+name = "Chart from CSV"
+category = "Data & Spreadsheets"
+description = "Make a simple chart image from data."
+inputs = ["file", "x", "y"]
+instructions = """
+Plot {{y}} against {{x}} from {{file}}. If matplotlib is not installed, write an SVG chart with python3's standard library. Label axes, add a title, save to /workspace/charts/, and report the path."""
+
+[[skill]]
+name = "Data from a web table"
+category = "Data & Spreadsheets"
+description = "Copy a table from a web page into a CSV."
+inputs = ["url"]
+instructions = """
+Open {{url}}, find the data tables (get_tables action), and save each as a CSV in /workspace/data/ with the page title and table number in the name. Report rows and columns for each."""
+
+[[skill]]
+name = "Scrape a listing page"
+category = "Data & Spreadsheets"
+description = "Collect structured items from a list page."
+inputs = ["url", "fields"]
+instructions = """
+Open {{url}} and collect each listed item's {{fields}}, following pagination up to 5 pages. Respect the site: slow down between pages, and stop if a CAPTCHA appears. Save to /workspace/data/items.csv."""
+safety = ["Stop if the site's terms or robots.txt forbid automated collection."]
+
+[[skill]]
+name = "Deduplicate records"
+category = "Data & Spreadsheets"
+description = "Find and merge near-duplicate rows."
+inputs = ["file", "columns"]
+instructions = """
+Find rows in {{file}} that are duplicates on {{columns}} after normalizing case, spacing and punctuation. Report duplicate groups and write a deduplicated file keeping the most complete row of each group."""
+
+[[skill]]
+name = "Validate data"
+category = "Data & Spreadsheets"
+description = "Check a dataset against rules."
+inputs = ["file", "rules"]
+instructions = """
+Check every row of {{file}} against {{rules}} (required fields, formats, ranges, allowed values). Write a report listing each failing row and rule, with counts per rule."""
+
+[[skill]]
+name = "JSON to spreadsheet"
+category = "Data & Spreadsheets"
+description = "Flatten JSON records into a CSV."
+inputs = ["file"]
+instructions = """
+Read the JSON array in {{file}}, flatten nested fields with dot notation (json_flatten action), and save as CSV. Report the columns created."""
+
+[[skill]]
+name = "Trend analysis"
+category = "Data & Spreadsheets"
+description = "Describe how a measure changed over time."
+inputs = ["file", "date_column", "value_column"]
+instructions = """
+From {{file}}, aggregate {{value_column}} by month using {{date_column}}. Report the overall trend, the biggest month-over-month changes, and any seasonality, with a small table."""
+
+[[skill]]
+name = "Survey results summary"
+category = "Data & Spreadsheets"
+description = "Summarize survey responses."
+inputs = ["file"]
+instructions = """
+Read the survey export {{file}}. For multiple-choice questions give counts and percentages; for free text, group answers into themes with counts and two representative quotes each. Save to /workspace/reports/survey.md."""
+
+[[skill]]
+name = "Data dictionary"
+category = "Data & Spreadsheets"
+description = "Document every column of a dataset."
+inputs = ["file"]
+instructions = """
+For each column in {{file}}: name, inferred type, example values, missing rate, and a plain-English description you infer. Mark guesses as such. Save as -dictionary.md."""
+
+[[skill]]
+name = "Compare two datasets"
+category = "Data & Spreadsheets"
+description = "Find differences between two versions of a table."
+inputs = ["old", "new", "key"]
+instructions = """
+Compare {{old}} and {{new}} by {{key}}: rows added, rows removed, and rows changed (with which fields changed). Save a diff CSV and a summary."""
+
+[[skill]]
+name = "Convert units in a table"
+category = "Data & Spreadsheets"
+description = "Convert a column from one unit to another."
+inputs = ["file", "column", "from", "to"]
+instructions = """
+Convert {{column}} in {{file}} from {{from}} to {{to}} (unit_convert action for the factor), add the converted column, and save a new file. Report the factor used."""
+
+[[skill]]
+name = "Sample a large file"
+category = "Data & Spreadsheets"
+description = "Take a random sample of a large CSV."
+inputs = ["file", "rows"]
+instructions = """
+Take a uniform random sample of {{rows}} rows from {{file}} (keep the header) with python3, save it, and report the seed used so it can be reproduced."""
+
+[[skill]]
+name = "Spreadsheet formula help"
+category = "Data & Spreadsheets"
+description = "Write a spreadsheet formula for a task."
+inputs = ["goal", "app"]
+instructions = """
+Write a {{app}} formula that does: {{goal}}. Explain each part, give an example with sample data, and mention common pitfalls."""
+
+[[skill]]
+name = "Leaderboard from results"
+category = "Data & Spreadsheets"
+description = "Rank entries by a score."
+inputs = ["file", "score_column"]
+instructions = """
+Rank the rows of {{file}} by {{score_column}} (highest first, ties share a rank). Output a ranked table with percentiles and save it."""

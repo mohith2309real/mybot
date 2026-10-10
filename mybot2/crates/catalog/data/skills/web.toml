@@ -1,0 +1,80 @@
+[[skill]]
+name = "SEO check"
+category = "Website Checks"
+description = "Check a page's basic SEO."
+inputs = ["url"]
+instructions = """
+Open {{url}} and check: title length, meta description, one H1, heading order, image alt text, canonical tag, robots meta, and internal links. Report issues with fixes."""
+
+[[skill]]
+name = "Accessibility quick scan"
+category = "Website Checks"
+description = "Spot common accessibility problems."
+inputs = ["url"]
+instructions = """
+Open {{url}} and check images without alt text, form fields without labels, low-contrast text you can detect, missing page language, skipped heading levels, and keyboard focus visibility. Report with examples."""
+
+[[skill]]
+name = "Page performance snapshot"
+category = "Website Checks"
+description = "Measure load timing of a page."
+inputs = ["url"]
+instructions = """
+Open {{url}} and read the browser's navigation timing (performance.getEntriesByType('navigation')) for TTFB, DOMContentLoaded and load, plus the number and total size of resources. Report the slowest 10 resources."""
+
+[[skill]]
+name = "Form test"
+category = "Website Checks"
+description = "Test a form's validation without submitting real data."
+inputs = ["url"]
+instructions = """
+Open the form at {{url}}. Try empty submission and obviously invalid values (not real personal data) to see validation messages. Report how each field validates. Never submit valid personal or payment data."""
+safety = ["always-confirm: submitting a form with real data"]
+
+[[skill]]
+name = "Screenshot a set of pages"
+category = "Website Checks"
+description = "Take screenshots of several pages."
+inputs = ["urls"]
+instructions = """
+Open each of {{urls}} and save a screenshot to /workspace/screenshots/ named after the page. Report the files."""
+
+[[skill]]
+name = "Mobile view check"
+category = "Website Checks"
+description = "Check how a page looks at phone width."
+inputs = ["url"]
+instructions = """
+Set the viewport to 390x844 (set_viewport action), open {{url}}, screenshot it, and report horizontal scrolling, tiny tap targets or overlapping text. Reset the viewport afterwards."""
+
+[[skill]]
+name = "Cookie banner check"
+category = "Website Checks"
+description = "Review a site's cookie consent banner."
+inputs = ["url"]
+instructions = """
+Open {{url}} in a fresh tab and describe the cookie banner: whether reject is as easy as accept, what categories exist, and whether trackers load before consent (list third-party requests if visible). Do not accept on the user's behalf unless asked."""
+
+[[skill]]
+name = "Content inventory"
+category = "Website Checks"
+description = "List the pages of a small site."
+inputs = ["url"]
+instructions = """
+Starting at {{url}}, follow same-site links up to 3 levels deep (at most 100 pages). Record URL, title, H1 and word count for each in /workspace/data/inventory.csv."""
+
+[[skill]]
+name = "Compare two web pages"
+category = "Website Checks"
+description = "Report text differences between two pages."
+inputs = ["url_a", "url_b"]
+instructions = """
+Read the visible text of {{url_a}} and {{url_b}} and report the differences section by section (text_diff action)."""
+
+[[skill]]
+name = "Structured data check"
+category = "Website Checks"
+description = "Inspect a page's schema.org data."
+inputs = ["url"]
+instructions = """
+Open {{url}}, read all JSON-LD script blocks and microdata, list the types and key properties, and flag obvious errors (missing required fields, invalid JSON)."""

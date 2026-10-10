@@ -1,0 +1,47 @@
+[[skill]]
+name = "Workout plan"
+category = "Health & Fitness"
+description = "A weekly workout plan for a goal."
+inputs = ["goal", "days", "equipment"]
+instructions = """
+Write a {{days}}-day-a-week plan for {{goal}} with {{equipment}}: exercises, sets, reps, rest and a progression rule. Include warm-ups. Advise checking with a professional if there are health conditions."""
+
+[[skill]]
+name = "Nutrition label comparison"
+category = "Health & Fitness"
+description = "Compare foods by their nutrition facts."
+inputs = ["foods"]
+instructions = """
+Find nutrition facts for {{foods}} per 100 g from official databases, and compare calories, protein, fibre, sugar, salt and saturated fat in a table."""
+
+[[skill]]
+name = "Doctor appointment prep"
+category = "Health & Fitness"
+description = "Prepare questions and notes for an appointment."
+inputs = ["reason"]
+instructions = """
+Prepare for a doctor's appointment about {{reason}}: a symptom timeline template, current medications list template, and 8 good questions to ask. Use reputable health sources. Not medical advice."""
+
+[[skill]]
+name = "Medication information"
+category = "Health & Fitness"
+description = "Look up official information about a medicine."
+inputs = ["medicine"]
+instructions = """
+Find the official patient information for {{medicine}} from a medicines regulator or national health service: what it is for, common side effects, interactions and warnings. Link sources. Not medical advice — consult a pharmacist or doctor."""
+
+[[skill]]
+name = "Sleep habit tracker"
+category = "Health & Fitness"
+description = "Summarize sleep data from an export."
+inputs = ["file"]
+instructions = """
+Read the sleep export {{file}}. Report average duration, bedtime consistency, best and worst weeks, and simple observations. Not medical advice."""
+
+[[skill]]
+name = "Running route finder"
+category = "Health & Fitness"
+description = "Find running routes of a given distance."
+inputs = ["location", "distance"]
+instructions = """
+Find popular running routes of about {{distance}} near {{location}} from route-sharing sites. List 5 with distance, elevation, surface and a link."""

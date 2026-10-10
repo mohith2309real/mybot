@@ -1,0 +1,145 @@
+[[skill]]
+name = "Organize downloads"
+category = "Files & Documents"
+description = "Sort a messy folder into subfolders by type."
+inputs = ["folder"]
+instructions = """
+List {{folder}}. Propose a structure (Documents, Images, Archives, Spreadsheets, Other) and show the plan as a table of moves first. Then move files accordingly, never overwriting — rename on conflicts. Report what moved."""
+safety = ["Never delete files.", "always-confirm: deleting files"]
+
+[[skill]]
+name = "Find duplicate files"
+category = "Files & Documents"
+description = "Find duplicate files by content."
+inputs = ["folder"]
+instructions = """
+Hash every file under {{folder}} (file_hash action or sha256sum). Group identical files and report each group with paths, sizes and total wasted space. Do not delete anything."""
+safety = ["always-confirm: deleting files"]
+
+[[skill]]
+name = "Rename files consistently"
+category = "Files & Documents"
+description = "Rename a set of files to a pattern."
+inputs = ["folder", "pattern"]
+instructions = """
+In {{folder}}, plan new names following {{pattern}} (for example date-prefix, lowercase, no spaces). Show the old → new table, check for collisions, then rename. Keep a rename log at {{folder}}/rename-log.csv so it can be undone."""
+
+[[skill]]
+name = "Merge text files"
+category = "Files & Documents"
+description = "Combine several text or Markdown files into one."
+inputs = ["files", "output"]
+instructions = """
+Combine {{files}} into {{output}} in the given order, with each file's name as a heading. Report the final size and section list."""
+
+[[skill]]
+name = "Document to outline"
+category = "Files & Documents"
+description = "Extract the heading structure of a document."
+inputs = ["file"]
+instructions = """
+Read {{file}} and output its outline: every heading with its level, plus the first sentence under each. Save as -outline.md."""
+
+[[skill]]
+name = "Compare two documents"
+category = "Files & Documents"
+description = "Show what changed between two versions."
+inputs = ["old", "new"]
+instructions = """
+Diff {{old}} and {{new}}. Report changes in plain language grouped by section (added, removed, reworded), ignoring whitespace-only changes, and attach the raw diff."""
+
+[[skill]]
+name = "Archive old files"
+category = "Files & Documents"
+description = "Zip files older than a date."
+inputs = ["folder", "before"]
+instructions = """
+Find files in {{folder}} last modified before {{before}}. Create an archive /workspace/archive/<folder>-<date>.zip containing them, verify the archive lists every file, and report. Leave the originals in place."""
+
+[[skill]]
+name = "Extract text from PDFs"
+category = "Files & Documents"
+description = "Pull the text out of PDF files."
+inputs = ["folder"]
+instructions = """
+For each PDF in {{folder}}, extract the text (python3 with a PDF text tool if available, else open it in the browser and read it). Save each as a .txt next to the PDF and report pages and word counts. Note scanned PDFs that have no text layer."""
+
+[[skill]]
+name = "Folder size report"
+category = "Files & Documents"
+description = "Show what is taking up space."
+inputs = ["folder"]
+instructions = """
+Report the 20 largest files and the size of each subfolder under {{folder}}, sorted by size, with totals."""
+
+[[skill]]
+name = "Create a README"
+category = "Files & Documents"
+description = "Write a README for a folder of files."
+inputs = ["folder"]
+instructions = """
+Look through {{folder}}. Write a README.md describing what is there, how it is organized, what each important file is for, and how to use it."""
+
+[[skill]]
+name = "Convert Markdown to HTML"
+category = "Files & Documents"
+description = "Turn Markdown files into simple HTML pages."
+inputs = ["folder"]
+instructions = """
+Convert every .md in {{folder}} to .html with the markdown_to_html action, wrapping each in a minimal page with the first heading as the title. Report the files created."""
+
+[[skill]]
+name = "Template fill"
+category = "Files & Documents"
+description = "Fill a template with values for many recipients."
+inputs = ["template", "data_csv"]
+instructions = """
+Read the template {{template}} with {{placeholders}} and the rows in {{data_csv}}. Produce one filled file per row in /workspace/out/, named from the first column. Report any placeholder without a matching column."""
+
+[[skill]]
+name = "Notes to knowledge base"
+category = "Files & Documents"
+description = "Turn scattered notes into linked topic pages."
+inputs = ["folder"]
+instructions = """
+Read the notes in {{folder}}. Group them by topic, write one Markdown page per topic combining the notes (keeping sources), and an index page linking them. Do not delete the originals."""
+
+[[skill]]
+name = "Image inventory"
+category = "Files & Documents"
+description = "List images with dimensions and sizes."
+inputs = ["folder"]
+instructions = """
+List every image in {{folder}} with its format, pixel dimensions (python3 can read headers) and file size. Flag very large files and duplicates by hash."""
+
+[[skill]]
+name = "Backup a folder"
+category = "Files & Documents"
+description = "Make a dated backup archive of a folder."
+inputs = ["folder"]
+instructions = """
+Create /workspace/backups/<folder>-<YYYYMMDD-HHMM>.tar.gz of {{folder}}, verify it by listing its contents, and report size and file count."""
+
+[[skill]]
+name = "Word count report"
+category = "Files & Documents"
+description = "Count words across a set of documents."
+inputs = ["folder"]
+instructions = """
+Count words, characters and lines for each text document in {{folder}}, with a total. Save as a CSV and report the top 5 longest."""
+
+[[skill]]
+name = "Redact personal data"
+category = "Files & Documents"
+description = "Mask emails, phone numbers and IDs in a document."
+inputs = ["file"]
+instructions = """
+Find emails, phone numbers, card-like numbers and national-ID-like patterns in {{file}} (extract actions). Write a redacted copy with each replaced by [REDACTED-<type>] and a count by type. Do not modify the original."""
+
+[[skill]]
+name = "Checklist from instructions"
+category = "Files & Documents"
+description = "Turn a set of instructions into a checklist."
+inputs = ["file"]
+instructions = """
+Read {{file}} and rewrite every actionable step as a checkbox item in order, keeping warnings as notes under the step they apply to. Save as -checklist.md."""

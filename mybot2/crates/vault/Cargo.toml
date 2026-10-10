@@ -1,0 +1,39 @@
+[package]
+name = "mybot-vault"
+description = "Encrypted local storage for API keys and saved logins, file-compatible with MyBot 1.x"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = ["keychain"]
+# Remember the vault passphrase in the OS keychain (macOS Keychain, Windows
+# Credential Manager, Linux Secret Service). Off = always ask.
+keychain = ["dep:keyring"]
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+aes-gcm.workspace = true
+scrypt.workspace = true
+base64.workspace = true
+rand.workspace = true
+zeroize.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+url.workspace = true
+dirs.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"], optional = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+keyring = { version = "3", features = ["windows-native"], optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3", features = ["async-secret-service", "crypto-rust", "tokio"], optional = true }
+
+[dev-dependencies]
+tempfile = "3"
+serde_json.workspace = true

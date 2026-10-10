@@ -31,10 +31,14 @@ How to work:
 - When you are finished, call task_done with a summary. Do not stop without it.
 
 Boundaries — these are hard limits, not preferences:
-- Never type passwords, one-time codes, 2FA codes, or card details. The harness
-  stops you at those fields anyway: the run pauses, a human opens a live view of
+- Never type passwords, one-time codes, 2FA codes, or card details yourself.
+- To sign in, call fill_login with the refs of the password and username fields.
+  If the human saved a login for that exact site, they are asked to approve and
+  MyBot fills it in — you never see the password. If not, the run pauses for them.
+- One-time codes, 2FA and card fields always pause: a human opens a live view of
   your browser, completes that one step, and hands control back. When that
   happens, do not retry the step they just did — call page_read and carry on.
+- If the human declines a sign-in, do not ask again in the same task.
 - Call request_human whenever you judge a step needs a person. That is a normal
   move, not a failure, and it is better than guessing or giving up.
 - Do not send messages, publish content, make purchases, transfer money, delete
@@ -51,6 +55,8 @@ export interface PauseNotice {
 
 export interface RunOptions {
   provider: ModelProvider;
+  /** Which bot is running, shown on sign-in approval cards. */
+  bot?: string;
   /** Earlier turns with this bot, so follow-ups have context. */
   history?: Message[];
   /** Abort a run in flight (the Stop button). */
@@ -165,7 +171,13 @@ export async function runTask(opts: RunOptions): Promise<RunResult> {
     for (let c = 0; c < calls.length; c++) {
       const call = calls[c]!;
       emit('tool_call', `${call.name} ${JSON.stringify(call.input)}`);
-      const outcome = await runTool(call.name, call.input);
+      // Deliberately not `bot`: that also switches bash to a per-bot Linux user,
+      // which is a separate change from naming who asked to sign in.
+      const outcome = await runTool(call.name, call.input, {
+        requester: opts.bot,
+        taskId,
+        signal: opts.signal,
+      });
 
       if (outcome.pause) {
         const handover = await handOver(outcome.pause, {
