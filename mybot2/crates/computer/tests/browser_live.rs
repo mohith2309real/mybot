@@ -56,8 +56,18 @@ fn page_html(path: &str) -> Option<&'static str> {
 
 /// Serve page_html() for every https request on every page target.
 async fn intercept(port: u16) {
-    let list: Vec<Value> = reqwest::get(format!("http://127.0.0.1:{port}/json/list")).await.unwrap().json().await.unwrap();
-    let page = list.iter().find(|t| t["type"] == "page").unwrap();
+    // CDP answers before the first tab is listed; on a busy CI machine that gap
+    // is long enough to see an empty list, so wait for the page to show up.
+    let mut page = None;
+    for _ in 0..100 {
+        let list: Vec<Value> = reqwest::get(format!("http://127.0.0.1:{port}/json/list")).await.unwrap().json().await.unwrap();
+        page = list.into_iter().find(|t| t["type"] == "page");
+        if page.is_some() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    let page = page.expect("Chromium listed no page target within 10 s");
     let ws_url = page["webSocketDebuggerUrl"].as_str().unwrap().to_string();
     let (ws, _) = tokio_tungstenite::connect_async(ws_url).await.unwrap();
     let (mut sink, mut stream) = ws.split();
