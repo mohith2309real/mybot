@@ -48,8 +48,12 @@ pub enum GptAuth {
 
 /// The ChatGPT sign-in helper: `openai-oauth`, an Apache-2.0 npm package that
 /// runs the OpenAI (Codex) OAuth login in your browser, keeps the token in
-/// `~/.codex/auth.json`, and serves an OpenAI-compatible API on loopback.
-/// MyBot never sees the token; it only talks to the helper.
+/// MyBot's own `<home>/chatgpt/auth.json`, and serves an OpenAI-compatible API
+/// on loopback. MyBot never sees the token; it only talks to the helper.
+///
+/// Not the Codex CLI's `~/.codex/auth.json`: OpenAI rotates the refresh token
+/// on every refresh, so two programs sharing one file take turns signing each
+/// other out (the helper got a 401 while Codex was running).
 pub mod chatgpt {
     use std::path::PathBuf;
     use std::process::Command;
@@ -104,10 +108,22 @@ pub mod chatgpt {
         if out.status.success() { Ok(tail) } else { Err(if tail.is_empty() { format!("The sign-in helper exited with {}", out.status) } else { tail }) }
     }
 
+    pub fn auth_file() -> PathBuf {
+        mybot_vault::home().join("chatgpt").join("auth.json")
+    }
+
     /// Start the helper in the background. The first time, it opens your
     /// browser to sign in to ChatGPT and waits (up to five minutes) for that.
     pub fn start() -> Result<String, String> {
-        run(&["--detach"])
+        let file = auth_file();
+        if let Some(dir) = file.parent() {
+            std::fs::create_dir_all(dir).map_err(|e| format!("Couldn't create {}: {e}", dir.display()))?;
+        }
+        let path = file.to_string_lossy().into_owned();
+        if !file.exists() {
+            run(&["login", "--oauth-file", &path])?;
+        }
+        run(&["--detach", "--oauth-file", &path])
     }
 
     pub fn stop() -> Result<String, String> {

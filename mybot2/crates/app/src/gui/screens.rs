@@ -889,9 +889,10 @@ impl App {
             });
         }
         ui.add(egui::Label::new(small(format!(
-            "Uses your ChatGPT plan — its limits, not API billing. MyBot runs {} (Apache-2.0), a helper on {} that signs you in through OpenAI in your browser and keeps the token in ~/.codex/auth.json. MyBot never sees it. Needs Node.js.",
+            "Uses your ChatGPT plan — its limits, not API billing. MyBot runs {} (Apache-2.0), a helper on {} that signs you in through OpenAI in your browser and keeps the token in {}, apart from the Codex CLI's. MyBot never sees it. Needs Node.js.",
             chatgpt::PACKAGE,
             chatgpt::URL.trim_end_matches("/v1"),
+            chatgpt::auth_file().display(),
         ))).wrap());
     }
 
