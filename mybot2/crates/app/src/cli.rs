@@ -14,10 +14,10 @@ use mybot_core::db::Bot;
 use mybot_core::providers::PROVIDERS;
 use mybot_vault::logins::NewLogin;
 
-use crate::engine::{CONVERSATION, Engine};
+use crate::engine::{Engine, conversation};
 
 #[derive(Parser)]
-#[command(name = "mybot2", version, about = "MyBot 2.0 — AI teammates with their own computers. Run with no command to open the app.")]
+#[command(name = "mybot2", version, about = "MyBot — AI teammates with their own computers. Run with no command to open the app.")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Cmd>,
@@ -442,11 +442,11 @@ pub fn main(cli: Cli) -> anyhow::Result<()> {
                 }
             }
             ComputerCmd::ResetProfiles => {
-                rt.block_on(mybot_computer::container::reset_profiles(CONVERSATION));
+                rt.block_on(mybot_computer::container::reset_profiles(conversation()));
                 println!("Every teammate is signed out of every site.");
             }
             ComputerCmd::Down { remove } => {
-                rt.block_on(mybot_computer::container::down(CONVERSATION, remove));
+                rt.block_on(mybot_computer::container::down(conversation(), remove));
                 println!("Stopped.");
             }
         },

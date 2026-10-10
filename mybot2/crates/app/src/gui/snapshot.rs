@@ -6,7 +6,8 @@
 //! ```
 //!
 //! opens the app, lets it settle, writes one frame as a PNG and quits. Views:
-//! `chat` (default), `computer`, `needs-you`, `new-teammate`, `skills`,
+//! `chat` (default), `computer`, `computer-live` (starts the teammate's real
+//! computer in Docker and waits for its desktop), `needs-you`, `new-teammate`, `skills`,
 //! `imported`, `routines`, `logins`, `settings`. A pending sign-in request in
 //! the data shows on any view. `MYBOT_SNAPSHOT_BOT=<name>` picks the
 //! conversation. Inert unless `MYBOT_SNAPSHOT` is set. Pair it with a
@@ -56,6 +57,13 @@ impl Snapshot {
                 super::theme::set_face_clock(Some(0.0));
             }
         })
+    }
+
+    /// Not ready yet: put the shot off a little longer.
+    pub fn hold(&mut self) {
+        if !self.requested {
+            self.next_at = self.next_at.max(self.frames + 2);
+        }
     }
 
     /// Call once per frame. Returns true once the file is written.

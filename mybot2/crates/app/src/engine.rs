@@ -20,7 +20,23 @@ use mybot_vault::keys::{KeyStore, env_var_for};
 use mybot_vault::logins::LoginStore;
 use zeroize::Zeroizing;
 
-pub const CONVERSATION: &str = "default";
+/// The conversation every teammate's computer belongs to: one container,
+/// `mybot-conv-<name>`, shared with MyBot 1.x as "default". Docker is one per
+/// machine whatever MYBOT_HOME says, so snapshots get their own ("snapshot")
+/// and never start or write into your real computer; MYBOT_CONVERSATION picks
+/// another one explicitly (tests, demos).
+pub fn conversation() -> &'static str {
+    static NAME: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    NAME.get_or_init(|| {
+        if let Some(c) = std::env::var("MYBOT_CONVERSATION").ok().filter(|c| !c.trim().is_empty()) {
+            c
+        } else if std::env::var_os("MYBOT_SNAPSHOT").is_some_and(|v| !v.is_empty()) {
+            "snapshot".into()
+        } else {
+            "default".into()
+        }
+    })
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GptAuth {
@@ -274,7 +290,7 @@ impl Engine {
         s.entry(bot.to_string())
             .or_insert_with(|| {
                 let log = self.computer_log.clone();
-                Arc::new(ComputerSession::new(CONVERSATION, bot, Arc::new(move |l: String| {
+                Arc::new(ComputerSession::new(conversation(), bot, Arc::new(move |l: String| {
                     let mut v = log.lock().unwrap();
                     v.push(l);
                     let n = v.len();

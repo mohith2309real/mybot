@@ -906,7 +906,7 @@ impl App {
                 ui.label(muted("Every teammate is signed out of every site. Saved logins are kept."));
                 ui.horizontal(|ui| {
                     if ui.add(danger_button("Reset")).clicked() {
-                        self.rt.spawn(container::reset_profiles(crate::engine::CONVERSATION));
+                        self.rt.spawn(container::reset_profiles(crate::engine::conversation()));
                         self.screens.confirm_reset = false;
                         self.toasts.push(super::Toast { text: "Browser profiles reset.".into(), bad: false, at: std::time::Instant::now() });
                     }

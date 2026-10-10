@@ -38,6 +38,8 @@ pub struct ComputerPanel {
     compile: Option<Job<Result<SkillDraft, String>>>,
     last_recording: Option<Recording>,
     draft: Option<DraftForm>,
+    /// Snapshot view `computer-live`: when the desktop first showed.
+    snapshot_live: Option<Instant>,
 }
 
 struct DraftForm {
@@ -215,6 +217,28 @@ impl App {
         }
         if p.view.is_some() {
             ctx.request_repaint_after(Duration::from_millis(40));
+        }
+    }
+
+    /// Snapshot view `computer-live`: start the open teammate's computer for
+    /// real and report ready once its desktop has been live for a few seconds
+    /// (XFCE draws its panel and wallpaper after the VNC server answers).
+    pub(super) fn snapshot_live_computer(&mut self, ctx: &egui::Context) -> bool {
+        let Some(bot) = self.bot().cloned() else { return true };
+        if self.computer.error.is_some() {
+            return true;
+        }
+        if self.computer.view.is_none() && self.computer.connecting.is_none() && !self.computer.starting {
+            self.start_computer(ctx, &bot);
+        }
+        let live = self.computer.view.as_ref().is_some_and(|v| v.is_connected()) && self.computer.generation > 0;
+        match (live, self.computer.snapshot_live) {
+            (true, None) => {
+                self.computer.snapshot_live = Some(Instant::now());
+                false
+            }
+            (true, Some(at)) => at.elapsed() > Duration::from_secs(8),
+            _ => false,
         }
     }
 

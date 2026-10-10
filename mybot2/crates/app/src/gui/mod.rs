@@ -184,7 +184,7 @@ impl App {
         {
             self.selected = Some(b.id.clone());
         }
-        self.show_computer = matches!(view.as_str(), "computer" | "needs-you");
+        self.show_computer = matches!(view.as_str(), "computer" | "computer-live" | "needs-you");
         match view.as_str() {
             "skills" => self.view = View::Skills,
             "imported" => {
@@ -891,6 +891,12 @@ impl eframe::App for App {
         self.teach_modal(&ctx);
         self.approvals(&ctx);
         self.toasts(&ctx);
+        if self.snapshot.as_ref().is_some_and(|s| s.view == "computer-live")
+            && !self.snapshot_live_computer(&ctx)
+            && let Some(s) = &mut self.snapshot
+        {
+            s.hold();
+        }
         if let Some(s) = &mut self.snapshot {
             s.tick(&ctx);
         }

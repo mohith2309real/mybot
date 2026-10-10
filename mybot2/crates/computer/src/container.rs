@@ -198,7 +198,28 @@ pub async fn ensure(conversation: &str, on_line: &(dyn Fn(String) + Send + Sync)
         build_image(on_line).await?;
     }
     let name = container_name(conversation);
-    match state(conversation).await {
+    let mut st = state(conversation).await;
+    // A stopped computer made from an older image is re-created from this one,
+    // or it would never get the new desktop (wallpaper, scripts). Homes (with
+    // the browser profiles) and the workspace are volumes and stay; /shared is
+    // copied across. A running one is left alone until it next stops.
+    let mut shared = None;
+    if st == State::Stopped && container_image(&name).await.as_deref() != Some(IMAGE) {
+        on_line(format!("Updating this computer to {IMAGE}…"));
+        let keep = mybot_vault::home().join("updates").join(format!("{name}-shared"));
+        let _ = std::fs::remove_dir_all(&keep);
+        std::fs::create_dir_all(&keep).map_err(|e| ComputerError::Failed(e.to_string()))?;
+        let from = format!("{name}:/shared/.");
+        if docker(&["cp", &from, &keep.to_string_lossy()]).await.code == 0 {
+            shared = Some(keep);
+        }
+        let r = docker(&["rm", &name]).await;
+        if r.code != 0 {
+            return Err(ComputerError::Failed(format!("could not update the computer: {}", r.stderr.trim())));
+        }
+        st = State::Absent;
+    }
+    match st {
         State::Absent => {
             let ws = format!("{name}-ws:/workspace");
             let homes = format!("{name}-homes:/home");
@@ -233,7 +254,24 @@ pub async fn ensure(conversation: &str, on_line: &(dyn Fn(String) + Send + Sync)
         State::Running => {}
     }
     let agentd_port = wait_for_agentd(&name).await?;
+    if let Some(dir) = shared {
+        let from = format!("{}/.", dir.to_string_lossy());
+        let to = format!("{name}:/shared/");
+        if docker(&["cp", &from, &to]).await.code == 0 {
+            // docker cp lands files as root; every bot must still be able to use them.
+            docker(&["exec", "-u", "root", &name, "chmod", "-R", "a+rwX", "/shared"]).await;
+            let _ = std::fs::remove_dir_all(&dir);
+        } else {
+            on_line(format!("Couldn't copy /shared back; it's kept in {}", dir.display()));
+        }
+    }
     Ok(Computer { conversation: conversation.into(), name, agentd_port })
+}
+
+/// The image a container was created from.
+async fn container_image(name: &str) -> Option<String> {
+    let r = docker(&["inspect", "-f", "{{.Config.Image}}", name]).await;
+    (r.code == 0).then(|| r.stdout.trim().to_string())
 }
 
 async fn wait_for_agentd(name: &str) -> Result<u16> {
