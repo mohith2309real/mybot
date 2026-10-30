@@ -595,6 +595,10 @@ async function handleApi(
     return true;
   }
 
+function q(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
   // Files the bot produced. Saving a report into /workspace is useless if the
   // only way to read it is `docker exec`.
   if (method === 'GET' && seg[1] === 'files') {
@@ -623,7 +627,7 @@ async function handleApi(
         sendJson(res, 400, { error: 'Only /workspace files can be read.' });
         return true;
       }
-      const out = await computer.exec(computer.DEFAULT_CONVERSATION, `cat ${JSON.stringify(wanted)}`);
+      const out = await computer.exec(computer.DEFAULT_CONVERSATION, `cat ${q(wanted)}`);
       if (out.code !== 0) {
         sendJson(res, 404, { error: out.stderr.trim() || 'not found' });
         return true;
