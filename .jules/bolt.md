@@ -1,0 +1,3 @@
+## 2023-11-01 - Optimizing SQLite JSON Array Appends
+**Learning:** In a heavily SQLite-backed application that continuously logs task execution (like `appendTaskLog`), manually reading the JSON array out of the DB, parsing it, appending an element, stringifying it, and writing it back creates O(N^2) overhead as the log array grows, due to repeated JSON deserialization/serialization of the entire array.
+**Action:** Use SQLite's native `json_insert(column, '$[#]', json(new_value))` to append to JSON arrays directly within the database engine. This prevents pulling the entire array into Node.js memory just to push one element, leading to significant performance gains on long-running tasks.
