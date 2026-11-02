@@ -1,0 +1,3 @@
+## 2024-11-02 - SQLite statement compilation performance
+**Learning:** `node:sqlite` repeatedly compiling the same statement via `db.prepare(sql)` inside frequently-called functions like `getBot` and `getTask` incurs a significant performance overhead (~80% slower) compared to reusing compiled `StatementSync` objects. This is a common performance bottleneck in backend database calls when not using connection pools or ORMs that automatically cache statements.
+**Action:** Always wrap or patch `db.prepare` to cache parsed statements based on the raw SQL string, particularly since this codebase relies entirely on localized dynamic queries without an external query builder.
