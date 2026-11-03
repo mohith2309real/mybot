@@ -1,4 +1,4 @@
-import { DatabaseSync } from 'node:sqlite';
+import { DatabaseSync, StatementSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -40,6 +40,22 @@ export function openDb(): DatabaseSync {
   db.exec(readFileSync(join(HERE, 'schema.sql'), 'utf8'));
   migrate(db);
   return db;
+}
+
+
+const statementCache = new Map<string, StatementSync>();
+
+/**
+ * ⚡ Bolt: Cache compiled SQLite statements to avoid recompilation overhead
+ * on every query. This significantly improves performance for repeated queries.
+ */
+export function prepareStatement(sql: string): StatementSync {
+  let stmt = statementCache.get(sql);
+  if (!stmt) {
+    stmt = openDb().prepare(sql);
+    statementCache.set(sql, stmt);
+  }
+  return stmt;
 }
 
 /**
@@ -85,19 +101,19 @@ export function createBot(input: {
 }
 
 export function getBot(id: string): Bot | undefined {
-  return openDb().prepare('SELECT * FROM bots WHERE id = ?').get(id) as Bot | undefined;
+  return prepareStatement('SELECT * FROM bots WHERE id = ?').get(id) as Bot | undefined;
 }
 
 export function getBotByName(name: string): Bot | undefined {
-  return openDb().prepare('SELECT * FROM bots WHERE name = ?').get(name) as Bot | undefined;
+  return prepareStatement('SELECT * FROM bots WHERE name = ?').get(name) as Bot | undefined;
 }
 
 export function listBots(): Bot[] {
-  return openDb().prepare('SELECT * FROM bots ORDER BY created_at').all() as unknown as Bot[];
+  return prepareStatement('SELECT * FROM bots ORDER BY created_at').all() as unknown as Bot[];
 }
 
 export function deleteBot(id: string): void {
-  openDb().prepare('DELETE FROM bots WHERE id = ?').run(id);
+  prepareStatement('DELETE FROM bots WHERE id = ?').run(id);
 }
 
 // --- tasks -----------------------------------------------------------------
@@ -111,13 +127,13 @@ export function createTask(botId: string, instruction: string): Task {
 }
 
 export function getTask(id: string): Task | undefined {
-  return openDb().prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Task | undefined;
+  return prepareStatement('SELECT * FROM tasks WHERE id = ?').get(id) as Task | undefined;
 }
 
 export function listTasks(botId?: string): Task[] {
   const q = botId
-    ? openDb().prepare('SELECT * FROM tasks WHERE bot_id = ? ORDER BY rowid DESC')
-    : openDb().prepare('SELECT * FROM tasks ORDER BY rowid DESC');
+    ? prepareStatement('SELECT * FROM tasks WHERE bot_id = ? ORDER BY rowid DESC')
+    : prepareStatement('SELECT * FROM tasks ORDER BY rowid DESC');
   return (botId ? q.all(botId) : q.all()) as unknown as Task[];
 }
 
@@ -141,17 +157,17 @@ export interface LogEntry {
 }
 
 export function appendTaskLog(id: string, kind: string, text: string): void {
-  const row = openDb().prepare('SELECT log FROM tasks WHERE id = ?').get(id) as
+  const row = prepareStatement('SELECT log FROM tasks WHERE id = ?').get(id) as
     | { log: string }
     | undefined;
   if (!row) return;
   const entries: LogEntry[] = JSON.parse(row.log || '[]');
   entries.push({ at: new Date().toISOString(), kind, text });
-  openDb().prepare('UPDATE tasks SET log = ? WHERE id = ?').run(JSON.stringify(entries), id);
+  prepareStatement('UPDATE tasks SET log = ? WHERE id = ?').run(JSON.stringify(entries), id);
 }
 
 export function readTaskLog(id: string): LogEntry[] {
-  const row = openDb().prepare('SELECT log FROM tasks WHERE id = ?').get(id) as
+  const row = prepareStatement('SELECT log FROM tasks WHERE id = ?').get(id) as
     | { log: string }
     | undefined;
   return row ? JSON.parse(row.log || '[]') : [];
@@ -202,15 +218,15 @@ export function createSkill(input: {
 }
 
 export function getSkill(id: string): Skill | undefined {
-  return openDb().prepare('SELECT * FROM skills WHERE id = ?').get(id) as unknown as Skill | undefined;
+  return prepareStatement('SELECT * FROM skills WHERE id = ?').get(id) as unknown as Skill | undefined;
 }
 
 export function getSkillByName(name: string): Skill | undefined {
-  return openDb().prepare('SELECT * FROM skills WHERE name = ?').get(name) as unknown as Skill | undefined;
+  return prepareStatement('SELECT * FROM skills WHERE name = ?').get(name) as unknown as Skill | undefined;
 }
 
 export function listSkills(): Skill[] {
-  return openDb().prepare('SELECT * FROM skills ORDER BY created_at DESC').all() as unknown as Skill[];
+  return prepareStatement('SELECT * FROM skills ORDER BY created_at DESC').all() as unknown as Skill[];
 }
 
 export function updateSkill(
@@ -229,7 +245,7 @@ export function updateSkill(
 }
 
 export function deleteSkill(id: string): void {
-  openDb().prepare('DELETE FROM skills WHERE id = ?').run(id);
+  prepareStatement('DELETE FROM skills WHERE id = ?').run(id);
 }
 
 // --- routines --------------------------------------------------------------
@@ -265,19 +281,19 @@ export function createRoutine(input: {
 }
 
 export function getRoutine(id: string): Routine | undefined {
-  return openDb().prepare('SELECT * FROM routines WHERE id = ?').get(id) as unknown as Routine | undefined;
+  return prepareStatement('SELECT * FROM routines WHERE id = ?').get(id) as unknown as Routine | undefined;
 }
 
 export function listRoutines(): Routine[] {
-  return openDb().prepare('SELECT * FROM routines ORDER BY created_at').all() as unknown as Routine[];
+  return prepareStatement('SELECT * FROM routines ORDER BY created_at').all() as unknown as Routine[];
 }
 
 export function setRoutineEnabled(id: string, enabled: boolean): void {
-  openDb().prepare('UPDATE routines SET enabled = ? WHERE id = ?').run(enabled ? 1 : 0, id);
+  prepareStatement('UPDATE routines SET enabled = ? WHERE id = ?').run(enabled ? 1 : 0, id);
 }
 
 export function deleteRoutine(id: string): void {
-  openDb().prepare('DELETE FROM routines WHERE id = ?').run(id);
+  prepareStatement('DELETE FROM routines WHERE id = ?').run(id);
 }
 
 export function markRoutineRun(id: string, nextRunAt?: string): void {
@@ -320,12 +336,12 @@ export interface Recording {
 
 export function createRecording(label: string): Recording {
   const id = randomUUID();
-  openDb().prepare('INSERT INTO recordings (id, label) VALUES (?, ?)').run(id, label);
+  prepareStatement('INSERT INTO recordings (id, label) VALUES (?, ?)').run(id, label);
   return getRecording(id)!;
 }
 
 export function getRecording(id: string): Recording | undefined {
-  return openDb().prepare('SELECT * FROM recordings WHERE id = ?').get(id) as unknown as
+  return prepareStatement('SELECT * FROM recordings WHERE id = ?').get(id) as unknown as
     | Recording
     | undefined;
 }
@@ -337,11 +353,11 @@ export function activeRecording(): Recording | undefined {
 }
 
 export function listRecordings(): Recording[] {
-  return openDb().prepare('SELECT * FROM recordings ORDER BY started_at DESC').all() as unknown as Recording[];
+  return prepareStatement('SELECT * FROM recordings ORDER BY started_at DESC').all() as unknown as Recording[];
 }
 
 export function saveRecordingActions(id: string, actions: unknown[]): void {
-  openDb().prepare('UPDATE recordings SET actions = ? WHERE id = ?').run(JSON.stringify(actions), id);
+  prepareStatement('UPDATE recordings SET actions = ? WHERE id = ?').run(JSON.stringify(actions), id);
 }
 
 export function stopRecording(id: string): void {
@@ -351,7 +367,7 @@ export function stopRecording(id: string): void {
 }
 
 export function attachRecordingSkill(id: string, skillId: string): void {
-  openDb().prepare("UPDATE recordings SET status='compiled', skill_id=? WHERE id=?").run(skillId, id);
+  prepareStatement("UPDATE recordings SET status='compiled', skill_id=? WHERE id=?").run(skillId, id);
 }
 
 // --- shared workspace session ---------------------------------------------
@@ -369,7 +385,7 @@ export function saveWorkspaceSession(cookies: Buffer): void {
 }
 
 export function loadWorkspaceSession(): Buffer | undefined {
-  const row = openDb().prepare('SELECT cookies_blob FROM workspace_sessions WHERE id = 1').get() as
+  const row = prepareStatement('SELECT cookies_blob FROM workspace_sessions WHERE id = 1').get() as
     | { cookies_blob: Uint8Array | null }
     | undefined;
   // node:sqlite hands back a Uint8Array, not a Buffer. Callers downstream (the
