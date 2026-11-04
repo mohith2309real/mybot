@@ -623,7 +623,10 @@ async function handleApi(
         sendJson(res, 400, { error: 'Only /workspace files can be read.' });
         return true;
       }
-      const out = await computer.exec(computer.DEFAULT_CONVERSATION, `cat ${JSON.stringify(wanted)}`);
+      // 🛡️ Sentinel: Prevent command injection. Use single quotes for bash escaping, not JSON.stringify
+      // which uses double quotes and allows bash substitutions like $(cmd).
+      const safePath = `'${wanted.replace(/'/g, "'\\''")}'`;
+      const out = await computer.exec(computer.DEFAULT_CONVERSATION, `cat ${safePath}`);
       if (out.code !== 0) {
         sendJson(res, 404, { error: out.stderr.trim() || 'not found' });
         return true;
