@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
+import type { StatementSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -37,6 +38,21 @@ export function openDb(): DatabaseSync {
   if (db) return db;
   mkdirSync(dirname(DB_PATH), { recursive: true, mode: 0o700 });
   db = new DatabaseSync(DB_PATH);
+
+  // ⚡ Bolt: Cache node:sqlite prepared statements.
+  // `db.prepare(sql)` recompiles the query on every call, introducing significant performance overhead.
+  // Caching the compiled StatementSync objects avoids this penalty.
+  const stmtCache = new Map<string, StatementSync>();
+  const origPrepare = db.prepare;
+  db.prepare = function (this: DatabaseSync, sql: string) {
+    let stmt = stmtCache.get(sql);
+    if (!stmt) {
+      stmt = origPrepare.call(this, sql);
+      stmtCache.set(sql, stmt);
+    }
+    return stmt;
+  };
+
   db.exec(readFileSync(join(HERE, 'schema.sql'), 'utf8'));
   migrate(db);
   return db;
