@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { openDb } from '../db/index.ts';
+import { openDb, cachedPrepare } from '../db/index.ts';
 import { containerName, exec, run } from './container.ts';
 
 /**
@@ -64,7 +64,7 @@ export function propose(input: {
 }
 
 export function get(id: string): Merge | undefined {
-  return openDb().prepare('SELECT * FROM merges WHERE id = ?').get(id) as unknown as Merge | undefined;
+  return cachedPrepare('SELECT * FROM merges WHERE id = ?').get(id) as unknown as Merge | undefined;
 }
 
 export function listPending(): Merge[] {
@@ -74,7 +74,7 @@ export function listPending(): Merge[] {
 }
 
 export function listActive(): Merge[] {
-  return openDb().prepare("SELECT * FROM merges WHERE status='active'").all() as unknown as Merge[];
+  return cachedPrepare("SELECT * FROM merges WHERE status='active'").all() as unknown as Merge[];
 }
 
 /** The other side answers. Only this can move `to_consent` off pending. */
@@ -97,14 +97,14 @@ export function respond(id: string, consent: 'granted' | 'denied'): Merge {
 
 /** Nobody answered and the requester still wants it — hand the call to a human. */
 export function escalate(id: string): Merge {
-  openDb().prepare("UPDATE merges SET status='human_review' WHERE id=?").run(id);
+  cachedPrepare("UPDATE merges SET status='human_review' WHERE id=?").run(id);
   const m = get(id)!;
   events.emit('escalated', m);
   return m;
 }
 
 export function revoke(id: string): void {
-  openDb().prepare("UPDATE merges SET status='revoked', decided_at=datetime('now') WHERE id=?").run(id);
+  cachedPrepare("UPDATE merges SET status='revoked', decided_at=datetime('now') WHERE id=?").run(id);
   events.emit('revoked', get(id));
 }
 

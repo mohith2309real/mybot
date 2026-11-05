@@ -3,7 +3,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { isAbsolute, resolve } from 'node:path';
 import { EventEmitter } from 'node:events';
-import { openDb } from '../db/index.ts';
+import { openDb, cachedPrepare } from '../db/index.ts';
 import { deliverFile, session, type Computer } from './container.ts';
 import type { ModelProvider } from '../providers/types.ts';
 
@@ -101,7 +101,7 @@ export function createRequest(input: {
 }
 
 export function getRequest(id: string): HostRequest | undefined {
-  return openDb().prepare('SELECT * FROM host_requests WHERE id = ?').get(id) as unknown as
+  return cachedPrepare('SELECT * FROM host_requests WHERE id = ?').get(id) as unknown as
     | HostRequest
     | undefined;
 }
