@@ -24,6 +24,8 @@ export interface ToolContext {
   model?: string;
   hostWaitMs?: number;
   mergeWaitMs?: number;
+  /** Run-scoped skill rules for every browser action. */
+  alwaysConfirmRules?: readonly liveview.AlwaysConfirmRule[];
 }
 
 /**
@@ -209,7 +211,7 @@ export async function runTool(
         const opened = `Opened ${r.url}\nTitle: ${r.title}\n`;
         // A checkout page or a CAPTCHA can appear with no action from the bot
         // at all, so landing on one is itself the boundary.
-        const b = await liveview.detectBoundary({ action: 'navigate' });
+        const b = await liveview.detectBoundary({ action: 'navigate', rules: ctx.alwaysConfirmRules });
         if (b) return pauseOutcome(b, opened);
         return { content: `${opened}Call page_read to see the page.` };
       }
@@ -220,7 +222,7 @@ export async function runTool(
         // so an unchanged page renumbers identically and we get the label of the
         // element that is actually about to be clicked.
         const snapshot = await browser.snapshot();
-        const b = await liveview.detectBoundary({ action: 'click', ref, snapshot });
+        const b = await liveview.detectBoundary({ action: 'click', ref, snapshot, rules: ctx.alwaysConfirmRules });
         if (b) return pauseOutcome(b);
         return { content: await browser.click(ref) };
       }
@@ -230,7 +232,7 @@ export async function runTool(
         const ref = Number(input.ref);
 
         const snapshot = await browser.snapshot();
-        const b = await liveview.detectBoundary({ action: 'type', ref, snapshot });
+        const b = await liveview.detectBoundary({ action: 'type', ref, snapshot, rules: ctx.alwaysConfirmRules });
         if (b) return pauseOutcome(b);
 
         return { content: await browser.type(ref, text, Boolean(input.submit)) };
