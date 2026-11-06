@@ -10,6 +10,7 @@ import {
   type Skill,
 } from '../db/index.ts';
 import { runTask, type RunResult } from '../agent/loop.ts';
+import type { AlwaysConfirmRule } from '../computer/liveview.ts';
 import type { ModelProvider } from '../providers/types.ts';
 
 /**
@@ -330,6 +331,15 @@ export interface SkillRunResult extends RunResult {
 
 export async function runSkill(opts: RunSkillOptions): Promise<SkillRunResult> {
   const instruction = renderSkillPrompt(opts.skill, opts.args, { context: opts.context });
+  const safety = parseSafetyRules(opts.skill);
+  // Match the actionable words of each safety rule against the target element
+  // or page. Do not use a process-global rule set: bots can run concurrently.
+  const alwaysConfirmRules: AlwaysConfirmRule[] = safety.alwaysConfirm.map((label) => {
+    const terms = label.toLowerCase().match(/[a-z]{4,}/g) ?? [];
+    const skip = new Set(['always', 'confirm', 'before', 'after', 'with', 'when', 'that', 'this', 'from', 'then', 'human']);
+    const words = terms.filter((word) => !skip.has(word));
+    return { label, match: words.length ? new RegExp(words.join('|'), 'i') : /(?=.)/ };
+  });
   const task = createTask(opts.bot.id, instruction);
 
   const result = await runTask({
@@ -339,6 +349,7 @@ export async function runSkill(opts: RunSkillOptions): Promise<SkillRunResult> {
     taskId: task.id,
     maxIterations: opts.maxIterations,
     onEvent: opts.onEvent,
+    alwaysConfirmRules,
   });
 
   return { ...result, taskId: task.id, instruction };
