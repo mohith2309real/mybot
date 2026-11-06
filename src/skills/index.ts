@@ -350,6 +350,8 @@ export async function runSkill(opts: RunSkillOptions): Promise<SkillRunResult> {
     maxIterations: opts.maxIterations,
     onEvent: opts.onEvent,
     alwaysConfirmRules,
+    // Skill procedures do not themselves grant permission for side effects.
+    authorityInstruction: '',
   });
 
   return { ...result, taskId: task.id, instruction };
