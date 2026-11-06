@@ -159,6 +159,8 @@ export interface DetectInput {
   ref?: number;
   /** Reuse a snapshot the caller already took, rather than re-walking the DOM. */
   snapshot?: Snapshot;
+  /** Run-scoped skill safety rules, never shared across concurrent tasks. */
+  rules?: readonly AlwaysConfirmRule[];
 }
 
 interface PageSignals {
@@ -187,14 +189,14 @@ export async function detectBoundary(input: DetectInput = {}): Promise<Boundary 
 
   if (input.ref !== undefined && (action === 'type' || action === 'click')) {
     const line = elementLine(snap, input.ref);
-    const el = fromElement(line, url, action);
+    const el = fromElement(line, url, action, input.rules ?? alwaysConfirm);
     if (el) return el;
   }
 
   const signals = await pageSignals();
   if (!signals) return undefined;
 
-  const page = fromPage(signals);
+  const page = fromPage(signals, input.rules ?? alwaysConfirm);
   if (page && !acknowledged.has(ackKey(page))) return page;
   return undefined;
 }
@@ -205,10 +207,10 @@ export function elementLine(snap: Snapshot | undefined, ref: number): string {
   return (snap.elements.split('\n').find((l) => l.trim().startsWith(`[${ref}]`)) ?? '').trim();
 }
 
-function fromElement(line: string, url: string, action: 'type' | 'click'): Boundary | undefined {
+function fromElement(line: string, url: string, action: 'type' | 'click', rules: readonly AlwaysConfirmRule[]): Boundary | undefined {
   if (!line) return undefined;
 
-  for (const rule of alwaysConfirm) {
+  for (const rule of rules) {
     if (rule.scope !== 'page' && ruleMatches(rule, line)) {
       return {
         kind: 'always_confirm',
@@ -264,7 +266,7 @@ function fromElement(line: string, url: string, action: 'type' | 'click'): Bound
   return undefined;
 }
 
-function fromPage(s: PageSignals): Boundary | undefined {
+function fromPage(s: PageSignals, rules: readonly AlwaysConfirmRule[]): Boundary | undefined {
   const at = { url: s.url, source: 'page' as const };
 
   if (s.captcha.length) {

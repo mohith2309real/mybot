@@ -67,6 +67,10 @@ export interface RunOptions {
    * live-view URL nobody sees is a run that hangs for fifteen silent minutes.
    */
   onPause?: (notice: PauseNotice) => void;
+  /** Skill rules scoped to this run (not a process-global mutable list). */
+  alwaysConfirmRules?: readonly import('../computer/liveview.ts').AlwaysConfirmRule[];
+  /** The human's own request, not rendered skill text. */
+  authorityInstruction?: string;
 }
 
 export interface RunResult {
@@ -165,7 +169,14 @@ export async function runTask(opts: RunOptions): Promise<RunResult> {
     for (let c = 0; c < calls.length; c++) {
       const call = calls[c]!;
       emit('tool_call', `${call.name} ${JSON.stringify(call.input)}`);
-      const outcome = await runTool(call.name, call.input);
+      const outcome = await runTool(call.name, call.input, {
+        taskId,
+        instruction,
+        provider,
+        model: opts.model,
+        alwaysConfirmRules: opts.alwaysConfirmRules,
+        authorityInstruction: opts.authorityInstruction ?? instruction,
+      });
 
       if (outcome.pause) {
         const handover = await handOver(outcome.pause, {

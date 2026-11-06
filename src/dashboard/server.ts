@@ -81,7 +81,9 @@ function lanAddress(): string {
 function authorised(req: IncomingMessage, url: URL, requireToken: boolean): boolean {
   // Loopback is gated by the OS, not by a token — the desktop app opens the
   // console with no credentials and must keep working when a phone pairs.
-  if (!requireToken || !pairingToken) return true;
+  if (!requireToken) return true;
+  // Fail closed while pairing is being established or torn down.
+  if (!pairingToken) return false;
 
   const supplied =
     url.searchParams.get('t') ??
@@ -91,6 +93,34 @@ function authorised(req: IncomingMessage, url: URL, requireToken: boolean): bool
   const a = Buffer.from(String(supplied));
   const b = Buffer.from(pairingToken);
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/**
+ * Reject DNS rebinding and browser cross-origin requests before any API call or
+ * WebSocket upgrade. The dashboard is an operations console, not a public API.
+ * Requests made by native clients without an Origin header still work, but must
+ * address the listener using its real interface hostname/IP.
+ */
+function trustedRequest(req: IncomingMessage, requireToken: boolean): boolean {
+  const host = req.headers.host;
+  if (!host) return false;
+  const hostname = host.replace(/:\\d+$/, '').replace(/^\\[|\\]$/g, '').toLowerCase();
+  const allowed = requireToken
+    ? [lanAddress()]
+    : ['127.0.0.1', 'localhost', '::1'];
+  if (!allowed.includes(hostname)) return false;
+  const origin = req.headers.origin;
+  if (origin) {
+    try {
+      const source = new URL(origin);
+      const expected = new URL(`http://${host}`);
+      if (source.origin !== expected.origin) return false;
+    } catch {
+      return false;
+    }
+  }
+  if (req.headers['sec-fetch-site'] === 'cross-site') return false;
+  return true;
 }
 
 export interface StartOptions {
@@ -952,7 +982,7 @@ async function unpair(): Promise<void> {
 function attachRemoteSocket(server: Server, requireToken: boolean): void {
   server.on('upgrade', (req, socket, _head) => {
     const url = new URL(req.url ?? '/', `http://${bindHost}`);
-    if (url.pathname !== '/api/remote/socket' || !authorised(req, url, requireToken)) {
+    if (url.pathname !== '/api/remote/socket' || !trustedRequest(req, requireToken) || !authorised(req, url, requireToken)) {
       socket.destroy();
       return;
     }
@@ -964,6 +994,12 @@ function attachRemoteSocket(server: Server, requireToken: boolean): void {
 function makeHandler(requireToken: boolean) {
   return (req: IncomingMessage, res: ServerResponse): void => {
     const url = new URL(req.url ?? '/', `http://${bindHost}`);
+
+    if (!trustedRequest(req, requireToken)) {
+      res.writeHead(403, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'forbidden request origin or host' }));
+      return;
+    }
 
     if (!authorised(req, url, requireToken)) {
       res.writeHead(401, { 'content-type': 'application/json' });
