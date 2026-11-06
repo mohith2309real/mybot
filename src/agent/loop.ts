@@ -69,6 +69,8 @@ export interface RunOptions {
   onPause?: (notice: PauseNotice) => void;
   /** Skill rules scoped to this run (not a process-global mutable list). */
   alwaysConfirmRules?: readonly import('../computer/liveview.ts').AlwaysConfirmRule[];
+  /** The human's own request, not rendered skill text. */
+  authorityInstruction?: string;
 }
 
 export interface RunResult {
@@ -173,6 +175,7 @@ export async function runTask(opts: RunOptions): Promise<RunResult> {
         provider,
         model: opts.model,
         alwaysConfirmRules: opts.alwaysConfirmRules,
+        authorityInstruction: opts.authorityInstruction ?? instruction,
       });
 
       if (outcome.pause) {
