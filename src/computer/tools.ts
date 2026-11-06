@@ -6,7 +6,7 @@ import * as hostaccess from './hostaccess.ts';
 import * as merge from './merge.ts';
 import * as liveview from './liveview.ts';
 import type { Boundary, BoundaryKind } from './liveview.ts';
-import { checkDestructive } from '../policy/index.ts';
+import { checkDestructive, decide, grantsFromInstruction, type Capability } from '../policy/index.ts';
 
 /**
  * Who is running, and on whose behalf.
@@ -26,6 +26,29 @@ export interface ToolContext {
   mergeWaitMs?: number;
   /** Run-scoped skill rules for every browser action. */
   alwaysConfirmRules?: readonly liveview.AlwaysConfirmRule[];
+  authorityInstruction?: string;
+}
+
+
+/** Conservative action classifier: extra browser and shell policy enforcement. */
+function consequence(action: string): Capability | undefined {
+  if (/\b(transfer (funds|money)|wire money|withdraw)\b/i.test(action)) return 'transfer_funds';
+  if (/\b(buy now|purchase|pay now|checkout|place (the )?order)\b/i.test(action)) return 'purchase';
+  if (/\b(accept (the )?(terms|contract)|agree to terms)\b/i.test(action)) return 'accept_terms';
+  if (/\b(chmod|chown|grant access|revoke access|make admin)\b/i.test(action)) return 'change_permissions';
+  if (/\b(delete|erase|discard|trash|purge|wipe|rm\s|git reset --hard)\b/i.test(action)) return 'delete_data';
+  if (/\b(git push|npm publish|deploy|kubectl apply|terraform apply|docker push)\b/i.test(action)) return 'production_change';
+  if (/\b(publish|post now|share publicly|tweet)\b/i.test(action)) return 'publish';
+  if (/\b(send|reply|forward|invite|email)\b/i.test(action)) return 'send_message';
+  return undefined;
+}
+
+function allowedByPolicy(capability: Capability, ctx: ToolContext): { allow: boolean; reason: string } {
+  const verdict = decide({ capability }, {
+    mode: 'ask',
+    grants: grantsFromInstruction(ctx.authorityInstruction ?? ctx.instruction ?? ''),
+  });
+  return { allow: verdict.decision === 'allow', reason: verdict.reason };
 }
 
 /**
@@ -222,6 +245,20 @@ export async function runTool(
         // so an unchanged page renumbers identically and we get the label of the
         // element that is actually about to be clicked.
         const snapshot = await browser.snapshot();
+        const target = liveview.elementLine(snapshot, ref);
+        const capability = consequence(target);
+        if (capability) {
+          const permission = allowedByPolicy(capability, ctx);
+          if (!permission.allow) {
+            return pauseOutcome({
+              kind: 'always_confirm',
+              reason: permission.reason,
+              evidence: target.slice(0, 200),
+              url: snapshot.url,
+              source: 'element',
+            });
+          }
+        }
         const b = await liveview.detectBoundary({ action: 'click', ref, snapshot, rules: ctx.alwaysConfirmRules });
         if (b) return pauseOutcome(b);
         return { content: await browser.click(ref) };
@@ -243,6 +280,11 @@ export async function runTool(
 
       case 'bash': {
         const command = String(input.command ?? '');
+        const capability = consequence(command);
+        if (capability) {
+          const permission = allowedByPolicy(capability, ctx);
+          if (!permission.allow) return { isError: true, content: `Not executed: ${permission.reason}` };
+        }
 
         // Checked here, at the point of execution, rather than only in the
         // policy layer: this is the last gate before the command reaches a
