@@ -209,6 +209,8 @@ export async function syncWorkspace(fromConv: string, toConv: string, subpath = 
 
 /** A merged conversation's files, listed without copying anything. */
 export async function peekWorkspace(conversationId: string, subpath = '.'): Promise<string> {
-  const r = await exec(conversationId, `ls -la ${JSON.stringify(`/workspace/${subpath}`)}`);
+  // 🛡️ Sentinel: Escape single quotes and wrap in single quotes to prevent command injection
+  const escapedPath = `'/workspace/${subpath.replace(/'/g, "'\\''")}'`;
+  const r = await exec(conversationId, `ls -la ${escapedPath}`);
   return r.code === 0 ? r.stdout.trim() : r.stderr.trim();
 }
