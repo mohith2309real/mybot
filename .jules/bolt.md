@@ -1,0 +1,3 @@
+## 2024-11-07 - Cache SQLite StatementSync objects
+**Learning:** node:sqlite `db.prepare()` recompiles the SQL string on every call, which incurs a measurable CPU overhead for frequently executed queries (like logging and fetching tasks). While one might be tempted to globally monkey-patch `DatabaseSync.prototype.prepare` or use Proxies, doing so introduces shared state mutation risks and CPU overhead.
+**Action:** Implement an explicit, bounded cache (e.g., clearing the Map at 500 entries) in a `cachedPrepare(sql)` helper to store compiled `StatementSync` objects, avoiding recompilation overhead safely. Replace repeated calls to `prepare()` with the helper while skipping one-off calls like PRAGMA in migrations.
