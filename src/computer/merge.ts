@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { openDb } from '../db/index.ts';
+import { openDb, cachedPrepare } from '../db/index.ts';
 import { containerName, exec, run } from './container.ts';
 
 /**
@@ -52,8 +52,7 @@ export function propose(input: {
 }): Merge {
   if (input.from === input.to) throw new Error('A conversation cannot merge with itself.');
   const id = randomUUID();
-  openDb()
-    .prepare(
+  cachedPrepare(openDb(),
       `INSERT INTO merges (id, from_conv, to_conv, scope, requested_by, from_consent, to_consent)
        VALUES (?, ?, ?, ?, ?, 'granted', 'pending')`,
     )
@@ -64,17 +63,16 @@ export function propose(input: {
 }
 
 export function get(id: string): Merge | undefined {
-  return openDb().prepare('SELECT * FROM merges WHERE id = ?').get(id) as unknown as Merge | undefined;
+  return cachedPrepare(openDb(), 'SELECT * FROM merges WHERE id = ?').get(id) as unknown as Merge | undefined;
 }
 
 export function listPending(): Merge[] {
-  return openDb()
-    .prepare("SELECT * FROM merges WHERE status IN ('pending','human_review') ORDER BY created_at")
+  return cachedPrepare(openDb(), "SELECT * FROM merges WHERE status IN ('pending','human_review') ORDER BY created_at")
     .all() as unknown as Merge[];
 }
 
 export function listActive(): Merge[] {
-  return openDb().prepare("SELECT * FROM merges WHERE status='active'").all() as unknown as Merge[];
+  return cachedPrepare(openDb(), "SELECT * FROM merges WHERE status='active'").all() as unknown as Merge[];
 }
 
 /** The other side answers. Only this can move `to_consent` off pending. */
@@ -86,8 +84,7 @@ export function respond(id: string, consent: 'granted' | 'denied'): Merge {
   }
 
   const status: MergeStatus = consent === 'granted' ? 'active' : 'refused';
-  openDb()
-    .prepare("UPDATE merges SET to_consent=?, status=?, decided_at=datetime('now') WHERE id=?")
+  cachedPrepare(openDb(), "UPDATE merges SET to_consent=?, status=?, decided_at=datetime('now') WHERE id=?")
     .run(consent, status, id);
 
   const updated = get(id)!;
@@ -97,14 +94,14 @@ export function respond(id: string, consent: 'granted' | 'denied'): Merge {
 
 /** Nobody answered and the requester still wants it — hand the call to a human. */
 export function escalate(id: string): Merge {
-  openDb().prepare("UPDATE merges SET status='human_review' WHERE id=?").run(id);
+  cachedPrepare(openDb(), "UPDATE merges SET status='human_review' WHERE id=?").run(id);
   const m = get(id)!;
   events.emit('escalated', m);
   return m;
 }
 
 export function revoke(id: string): void {
-  openDb().prepare("UPDATE merges SET status='revoked', decided_at=datetime('now') WHERE id=?").run(id);
+  cachedPrepare(openDb(), "UPDATE merges SET status='revoked', decided_at=datetime('now') WHERE id=?").run(id);
   events.emit('revoked', get(id));
 }
 
