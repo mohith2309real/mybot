@@ -3,7 +3,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { isAbsolute, resolve } from 'node:path';
 import { EventEmitter } from 'node:events';
-import { openDb } from '../db/index.ts';
+import { openDb, cachedPrepare } from '../db/index.ts';
 import { deliverFile, session, type Computer } from './container.ts';
 import type { ModelProvider } from '../providers/types.ts';
 
@@ -92,8 +92,7 @@ export function createRequest(input: {
   taskId?: string;
 }): HostRequest {
   const id = randomUUID();
-  openDb()
-    .prepare('INSERT INTO host_requests (id, task_id, bot, path, reason) VALUES (?, ?, ?, ?, ?)')
+  cachedPrepare(openDb(), 'INSERT INTO host_requests (id, task_id, bot, path, reason) VALUES (?, ?, ?, ?, ?)')
     .run(id, input.taskId ?? null, input.bot, input.path, input.reason);
   const req = getRequest(id)!;
   events.emit('requested', req);
@@ -101,20 +100,18 @@ export function createRequest(input: {
 }
 
 export function getRequest(id: string): HostRequest | undefined {
-  return openDb().prepare('SELECT * FROM host_requests WHERE id = ?').get(id) as unknown as
+  return cachedPrepare(openDb(), 'SELECT * FROM host_requests WHERE id = ?').get(id) as unknown as
     | HostRequest
     | undefined;
 }
 
 export function listPending(): HostRequest[] {
-  return openDb()
-    .prepare("SELECT * FROM host_requests WHERE status='pending' ORDER BY created_at")
+  return cachedPrepare(openDb(), "SELECT * FROM host_requests WHERE status='pending' ORDER BY created_at")
     .all() as unknown as HostRequest[];
 }
 
 function settle(id: string, status: RequestStatus, by: 'human' | 'arbiter', verdict: string): void {
-  openDb()
-    .prepare("UPDATE host_requests SET status=?, decided_by=?, verdict=?, decided_at=datetime('now') WHERE id=?")
+  cachedPrepare(openDb(), "UPDATE host_requests SET status=?, decided_by=?, verdict=?, decided_at=datetime('now') WHERE id=?")
     .run(status, by, verdict, id);
   const req = getRequest(id);
   if (req) events.emit('settled', req);
