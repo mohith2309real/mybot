@@ -1,0 +1,4 @@
+## 2024-05-24 - [CRITICAL] Prevent Command Injection via JSON.stringify in Bash execution
+**Vulnerability:** In `src/dashboard/server.ts`, a file reading endpoint passed a file path obtained via user input to a bash command string executed via `computer.exec`. The path was serialized with `JSON.stringify(wanted)`. This incorrectly allows command substitution injection because `JSON.stringify` returns double quotes, allowing strings like `/workspace/$(malicious_command)` to be evaluated by bash.
+**Learning:** Using `JSON.stringify` to escape arguments interpolated into a string passed to a bash session is insecure because double quotes in bash permit command substitution.
+**Prevention:** Always use explicit single-quote shell escaping (e.g., `const escaped = "'" + str.replace(/'/g, "'\\''") + "'"`). Do not use `JSON.stringify` for escaping shell commands.
