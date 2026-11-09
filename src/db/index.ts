@@ -1,4 +1,4 @@
-import { DatabaseSync } from 'node:sqlite';
+import { DatabaseSync, StatementSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -31,6 +31,25 @@ export interface Task {
   completed_at: string | null;
 }
 
+// ⚡ Bolt: Cache compiled StatementSync objects to avoid recompilation overhead.
+// Using a WeakMap tied to the specific database instance safely handles multiple
+// connections preventing memory leaks and cross-connection errors.
+const statementCache = new WeakMap<DatabaseSync, Map<string, StatementSync>>();
+
+function prepare(db: DatabaseSync, sql: string): StatementSync {
+  let cache = statementCache.get(db);
+  if (!cache) {
+    cache = new Map();
+    statementCache.set(db, cache);
+  }
+  let stmt = cache.get(sql);
+  if (!stmt) {
+    stmt = db.prepare(sql);
+    cache.set(sql, stmt);
+  }
+  return stmt;
+}
+
 let db: DatabaseSync | undefined;
 
 export function openDb(): DatabaseSync {
@@ -50,7 +69,7 @@ export function openDb(): DatabaseSync {
 function migrate(handle: DatabaseSync): void {
   const columns = (table: string): Set<string> =>
     new Set(
-      (handle.prepare(`PRAGMA table_info(${table})`).all() as unknown as { name: string }[]).map(
+      (prepare(handle, `PRAGMA table_info(${table})`).all() as unknown as { name: string }[]).map(
         (c) => c.name,
       ),
     );
@@ -78,59 +97,56 @@ export function createBot(input: {
   system?: string;
 }): Bot {
   const id = randomUUID();
-  openDb()
-    .prepare('INSERT INTO bots (id, name, provider, model, system) VALUES (?, ?, ?, ?, ?)')
+  prepare(openDb(), 'INSERT INTO bots (id, name, provider, model, system) VALUES (?, ?, ?, ?, ?)')
     .run(id, input.name, input.provider, input.model, input.system ?? null);
   return getBot(id)!;
 }
 
 export function getBot(id: string): Bot | undefined {
-  return openDb().prepare('SELECT * FROM bots WHERE id = ?').get(id) as Bot | undefined;
+  return prepare(openDb(), 'SELECT * FROM bots WHERE id = ?').get(id) as Bot | undefined;
 }
 
 export function getBotByName(name: string): Bot | undefined {
-  return openDb().prepare('SELECT * FROM bots WHERE name = ?').get(name) as Bot | undefined;
+  return prepare(openDb(), 'SELECT * FROM bots WHERE name = ?').get(name) as Bot | undefined;
 }
 
 export function listBots(): Bot[] {
-  return openDb().prepare('SELECT * FROM bots ORDER BY created_at').all() as unknown as Bot[];
+  return prepare(openDb(), 'SELECT * FROM bots ORDER BY created_at').all() as unknown as Bot[];
 }
 
 export function deleteBot(id: string): void {
-  openDb().prepare('DELETE FROM bots WHERE id = ?').run(id);
+  prepare(openDb(), 'DELETE FROM bots WHERE id = ?').run(id);
 }
 
 // --- tasks -----------------------------------------------------------------
 
 export function createTask(botId: string, instruction: string): Task {
   const id = randomUUID();
-  openDb()
-    .prepare('INSERT INTO tasks (id, bot_id, instruction, status) VALUES (?, ?, ?, ?)')
+  prepare(openDb(), 'INSERT INTO tasks (id, bot_id, instruction, status) VALUES (?, ?, ?, ?)')
     .run(id, botId, instruction, 'queued');
   return getTask(id)!;
 }
 
 export function getTask(id: string): Task | undefined {
-  return openDb().prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Task | undefined;
+  return prepare(openDb(), 'SELECT * FROM tasks WHERE id = ?').get(id) as Task | undefined;
 }
 
 export function listTasks(botId?: string): Task[] {
   const q = botId
-    ? openDb().prepare('SELECT * FROM tasks WHERE bot_id = ? ORDER BY rowid DESC')
-    : openDb().prepare('SELECT * FROM tasks ORDER BY rowid DESC');
+    ? prepare(openDb(), 'SELECT * FROM tasks WHERE bot_id = ? ORDER BY rowid DESC')
+    : prepare(openDb(), 'SELECT * FROM tasks ORDER BY rowid DESC');
   return (botId ? q.all(botId) : q.all()) as unknown as Task[];
 }
 
 export function setTaskStatus(id: string, status: TaskStatus): void {
   const dbh = openDb();
   if (status === 'running') {
-    dbh
-      .prepare("UPDATE tasks SET status = ?, started_at = COALESCE(started_at, datetime('now')) WHERE id = ?")
+    prepare(dbh, "UPDATE tasks SET status = ?, started_at = COALESCE(started_at, datetime('now')) WHERE id = ?")
       .run(status, id);
   } else if (status === 'done' || status === 'failed' || status === 'cancelled') {
-    dbh.prepare("UPDATE tasks SET status = ?, completed_at = datetime('now') WHERE id = ?").run(status, id);
+    prepare(dbh, "UPDATE tasks SET status = ?, completed_at = datetime('now') WHERE id = ?").run(status, id);
   } else {
-    dbh.prepare('UPDATE tasks SET status = ? WHERE id = ?').run(status, id);
+    prepare(dbh, 'UPDATE tasks SET status = ? WHERE id = ?').run(status, id);
   }
 }
 
@@ -141,17 +157,17 @@ export interface LogEntry {
 }
 
 export function appendTaskLog(id: string, kind: string, text: string): void {
-  const row = openDb().prepare('SELECT log FROM tasks WHERE id = ?').get(id) as
+  const row = prepare(openDb(), 'SELECT log FROM tasks WHERE id = ?').get(id) as
     | { log: string }
     | undefined;
   if (!row) return;
   const entries: LogEntry[] = JSON.parse(row.log || '[]');
   entries.push({ at: new Date().toISOString(), kind, text });
-  openDb().prepare('UPDATE tasks SET log = ? WHERE id = ?').run(JSON.stringify(entries), id);
+  prepare(openDb(), 'UPDATE tasks SET log = ? WHERE id = ?').run(JSON.stringify(entries), id);
 }
 
 export function readTaskLog(id: string): LogEntry[] {
-  const row = openDb().prepare('SELECT log FROM tasks WHERE id = ?').get(id) as
+  const row = prepare(openDb(), 'SELECT log FROM tasks WHERE id = ?').get(id) as
     | { log: string }
     | undefined;
   return row ? JSON.parse(row.log || '[]') : [];
@@ -160,20 +176,17 @@ export function readTaskLog(id: string): LogEntry[] {
 // --- pause / resume (step 3 human-in-the-loop) -----------------------------
 
 export function pauseTask(id: string, reason: string): void {
-  openDb()
-    .prepare("UPDATE tasks SET status='paused', paused_reason=?, paused_at=datetime('now') WHERE id=?")
+  prepare(openDb(), "UPDATE tasks SET status='paused', paused_reason=?, paused_at=datetime('now') WHERE id=?")
     .run(reason, id);
 }
 
 export function resumeTask(id: string): void {
-  openDb()
-    .prepare("UPDATE tasks SET status='running', paused_reason=NULL, paused_at=NULL WHERE id=?")
+  prepare(openDb(), "UPDATE tasks SET status='running', paused_reason=NULL, paused_at=NULL WHERE id=?")
     .run(id);
 }
 
 export function listPausedTasks(): Task[] {
-  return openDb()
-    .prepare("SELECT * FROM tasks WHERE status='paused' ORDER BY paused_at DESC")
+  return prepare(openDb(), "SELECT * FROM tasks WHERE status='paused' ORDER BY paused_at DESC")
     .all() as unknown as Task[];
 }
 
@@ -195,22 +208,21 @@ export function createSkill(input: {
   safetyRules?: string;
 }): Skill {
   const id = randomUUID();
-  openDb()
-    .prepare('INSERT INTO skills (id, name, instructions, source, safety_rules) VALUES (?, ?, ?, ?, ?)')
+  prepare(openDb(), 'INSERT INTO skills (id, name, instructions, source, safety_rules) VALUES (?, ?, ?, ?, ?)')
     .run(id, input.name, input.instructions, input.source ?? 'manual', input.safetyRules ?? null);
   return getSkill(id)!;
 }
 
 export function getSkill(id: string): Skill | undefined {
-  return openDb().prepare('SELECT * FROM skills WHERE id = ?').get(id) as unknown as Skill | undefined;
+  return prepare(openDb(), 'SELECT * FROM skills WHERE id = ?').get(id) as unknown as Skill | undefined;
 }
 
 export function getSkillByName(name: string): Skill | undefined {
-  return openDb().prepare('SELECT * FROM skills WHERE name = ?').get(name) as unknown as Skill | undefined;
+  return prepare(openDb(), 'SELECT * FROM skills WHERE name = ?').get(name) as unknown as Skill | undefined;
 }
 
 export function listSkills(): Skill[] {
-  return openDb().prepare('SELECT * FROM skills ORDER BY created_at DESC').all() as unknown as Skill[];
+  return prepare(openDb(), 'SELECT * FROM skills ORDER BY created_at DESC').all() as unknown as Skill[];
 }
 
 export function updateSkill(
@@ -219,8 +231,7 @@ export function updateSkill(
 ): void {
   const s = getSkill(id);
   if (!s) throw new Error(`No skill ${id}`);
-  openDb()
-    .prepare('UPDATE skills SET instructions = ?, safety_rules = ? WHERE id = ?')
+  prepare(openDb(), 'UPDATE skills SET instructions = ?, safety_rules = ? WHERE id = ?')
     .run(
       patch.instructions ?? s.instructions,
       patch.safetyRules === undefined ? s.safety_rules : patch.safetyRules,
@@ -229,7 +240,7 @@ export function updateSkill(
 }
 
 export function deleteSkill(id: string): void {
-  openDb().prepare('DELETE FROM skills WHERE id = ?').run(id);
+  prepare(openDb(), 'DELETE FROM skills WHERE id = ?').run(id);
 }
 
 // --- routines --------------------------------------------------------------
@@ -258,37 +269,34 @@ export function createRoutine(input: {
     throw new Error('A routine needs exactly one of schedule (cron) or trigger (event name).');
   }
   const id = randomUUID();
-  openDb()
-    .prepare('INSERT INTO routines (id, skill_id, bot_id, schedule, trigger) VALUES (?, ?, ?, ?, ?)')
+  prepare(openDb(), 'INSERT INTO routines (id, skill_id, bot_id, schedule, trigger) VALUES (?, ?, ?, ?, ?)')
     .run(id, input.skillId, input.botId ?? null, input.schedule ?? null, input.trigger ?? null);
   return getRoutine(id)!;
 }
 
 export function getRoutine(id: string): Routine | undefined {
-  return openDb().prepare('SELECT * FROM routines WHERE id = ?').get(id) as unknown as Routine | undefined;
+  return prepare(openDb(), 'SELECT * FROM routines WHERE id = ?').get(id) as unknown as Routine | undefined;
 }
 
 export function listRoutines(): Routine[] {
-  return openDb().prepare('SELECT * FROM routines ORDER BY created_at').all() as unknown as Routine[];
+  return prepare(openDb(), 'SELECT * FROM routines ORDER BY created_at').all() as unknown as Routine[];
 }
 
 export function setRoutineEnabled(id: string, enabled: boolean): void {
-  openDb().prepare('UPDATE routines SET enabled = ? WHERE id = ?').run(enabled ? 1 : 0, id);
+  prepare(openDb(), 'UPDATE routines SET enabled = ? WHERE id = ?').run(enabled ? 1 : 0, id);
 }
 
 export function deleteRoutine(id: string): void {
-  openDb().prepare('DELETE FROM routines WHERE id = ?').run(id);
+  prepare(openDb(), 'DELETE FROM routines WHERE id = ?').run(id);
 }
 
 export function markRoutineRun(id: string, nextRunAt?: string): void {
-  openDb()
-    .prepare("UPDATE routines SET last_run_at = datetime('now'), next_run_at = ? WHERE id = ?")
+  prepare(openDb(), "UPDATE routines SET last_run_at = datetime('now'), next_run_at = ? WHERE id = ?")
     .run(nextRunAt ?? null, id);
 }
 
 export function recordRoutineRun(routineId: string, taskId?: string, error?: string): void {
-  openDb()
-    .prepare('INSERT INTO routine_runs (id, routine_id, task_id, error) VALUES (?, ?, ?, ?)')
+  prepare(openDb(), 'INSERT INTO routine_runs (id, routine_id, task_id, error) VALUES (?, ?, ?, ?)')
     .run(randomUUID(), routineId, taskId ?? null, error ?? null);
 }
 
@@ -301,8 +309,7 @@ export interface RoutineRun {
 }
 
 export function listRoutineRuns(routineId: string, limit = 20): RoutineRun[] {
-  return openDb()
-    .prepare('SELECT * FROM routine_runs WHERE routine_id = ? ORDER BY fired_at DESC LIMIT ?')
+  return prepare(openDb(), 'SELECT * FROM routine_runs WHERE routine_id = ? ORDER BY fired_at DESC LIMIT ?')
     .all(routineId, limit) as unknown as RoutineRun[];
 }
 
@@ -320,46 +327,43 @@ export interface Recording {
 
 export function createRecording(label: string): Recording {
   const id = randomUUID();
-  openDb().prepare('INSERT INTO recordings (id, label) VALUES (?, ?)').run(id, label);
+  prepare(openDb(), 'INSERT INTO recordings (id, label) VALUES (?, ?)').run(id, label);
   return getRecording(id)!;
 }
 
 export function getRecording(id: string): Recording | undefined {
-  return openDb().prepare('SELECT * FROM recordings WHERE id = ?').get(id) as unknown as
+  return prepare(openDb(), 'SELECT * FROM recordings WHERE id = ?').get(id) as unknown as
     | Recording
     | undefined;
 }
 
 export function activeRecording(): Recording | undefined {
-  return openDb()
-    .prepare("SELECT * FROM recordings WHERE status='recording' ORDER BY started_at DESC LIMIT 1")
+  return prepare(openDb(), "SELECT * FROM recordings WHERE status='recording' ORDER BY started_at DESC LIMIT 1")
     .get() as unknown as Recording | undefined;
 }
 
 export function listRecordings(): Recording[] {
-  return openDb().prepare('SELECT * FROM recordings ORDER BY started_at DESC').all() as unknown as Recording[];
+  return prepare(openDb(), 'SELECT * FROM recordings ORDER BY started_at DESC').all() as unknown as Recording[];
 }
 
 export function saveRecordingActions(id: string, actions: unknown[]): void {
-  openDb().prepare('UPDATE recordings SET actions = ? WHERE id = ?').run(JSON.stringify(actions), id);
+  prepare(openDb(), 'UPDATE recordings SET actions = ? WHERE id = ?').run(JSON.stringify(actions), id);
 }
 
 export function stopRecording(id: string): void {
-  openDb()
-    .prepare("UPDATE recordings SET status='stopped', stopped_at=datetime('now') WHERE id=?")
+  prepare(openDb(), "UPDATE recordings SET status='stopped', stopped_at=datetime('now') WHERE id=?")
     .run(id);
 }
 
 export function attachRecordingSkill(id: string, skillId: string): void {
-  openDb().prepare("UPDATE recordings SET status='compiled', skill_id=? WHERE id=?").run(skillId, id);
+  prepare(openDb(), "UPDATE recordings SET status='compiled', skill_id=? WHERE id=?").run(skillId, id);
 }
 
 // --- shared workspace session ---------------------------------------------
 
 /** Account-wide browser session blob, shared by every bot. */
 export function saveWorkspaceSession(cookies: Buffer): void {
-  openDb()
-    .prepare(
+  prepare(openDb(),
       `INSERT INTO workspace_sessions (id, cookies_blob, updated_at)
        VALUES (1, ?, datetime('now'))
        ON CONFLICT(id) DO UPDATE SET cookies_blob = excluded.cookies_blob,
@@ -369,7 +373,7 @@ export function saveWorkspaceSession(cookies: Buffer): void {
 }
 
 export function loadWorkspaceSession(): Buffer | undefined {
-  const row = openDb().prepare('SELECT cookies_blob FROM workspace_sessions WHERE id = 1').get() as
+  const row = prepare(openDb(), 'SELECT cookies_blob FROM workspace_sessions WHERE id = 1').get() as
     | { cookies_blob: Uint8Array | null }
     | undefined;
   // node:sqlite hands back a Uint8Array, not a Buffer. Callers downstream (the
