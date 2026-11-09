@@ -1,0 +1,4 @@
+## 2024-03-24 - Command Injection via JSON.stringify() in Shell Execution
+**Vulnerability:** Shell command substitution (`$(cmd)`) or other bash evaluation issues can be triggered when dynamically constructing command strings using `JSON.stringify()` for argument escaping in bash `-c` or similar executions.
+**Learning:** `JSON.stringify()` strictly generates valid JSON strings (escaping quotes for double-quoted JSON strings) but does *not* escape sequences like `$(...)`, `` `...` ``, or variable expansions that bash will interpolate if it processes the string. If the resulting string ends up in a double-quoted bash string or unquoted context, bash processes it, leading to Command Injection.
+**Prevention:** Strictly use single-quote shell escaping (e.g., replacing `'` with `'\''` and wrapping in `'...'`) for dynamically passing user input to shell commands evaluated by `bash` (e.g. `bash -lc`), rather than `JSON.stringify()`.
