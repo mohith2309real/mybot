@@ -1,0 +1,3 @@
+## 2023-10-27 - [node:sqlite Statement Caching]
+**Learning:** node:sqlite `DatabaseSync` currently lacks built-in statement caching, leading to repeated compilation overhead in tight database interaction loops. However, using a global Map or monkey-patching `db.prepare` can leak memory or mix cross-connection execution states if multiple instances are created (like when opening a DB creates new connections).
+**Action:** Use an explicit, bounded `WeakMap<DatabaseSync, Map<string, StatementSync>>` for caching `StatementSync` objects natively. This prevents memory leaks and CPU overhead from proxy layers while safely handling multiple connections.
