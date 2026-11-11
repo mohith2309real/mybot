@@ -1,0 +1,3 @@
+## 2024-05-15 - [Database Statement Compilation Overhead]
+**Learning:** `node:sqlite` statement compilation is a major bottleneck due to recompilation overhead across many queries. The `db.prepare` method causes a significant performance hit on repeated executions.
+**Action:** Always cache compiled `StatementSync` objects to avoid recompilation overhead. Use an explicit, bounded `WeakMap` tied to the specific database instance (`WeakMap<DatabaseSync, Map<string, StatementSync>>`) rather than a simple global Map or globally monkey-patching `db.prepare`. This safely handles multiple connection instances (e.g., when `openDb()` creates new connections) preventing memory leaks, cross-connection execution errors, and proxy CPU overhead.

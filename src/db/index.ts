@@ -1,4 +1,4 @@
-import { DatabaseSync } from 'node:sqlite';
+import { DatabaseSync, StatementSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -9,6 +9,9 @@ import type { ProviderName } from '../providers/types.ts';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DIR = process.env.MYBOT_HOME ?? join(homedir(), '.mybot');
 const DB_PATH = process.env.MYBOT_DB ?? join(DIR, 'mybot.db');
+
+// Cache compiled StatementSync objects to avoid recompilation overhead.
+const statementCache = new WeakMap<DatabaseSync, Map<string, StatementSync>>();
 
 export interface Bot {
   id: string;
@@ -37,6 +40,26 @@ export function openDb(): DatabaseSync {
   if (db) return db;
   mkdirSync(dirname(DB_PATH), { recursive: true, mode: 0o700 });
   db = new DatabaseSync(DB_PATH);
+
+  // Initialize bounded statement cache for this db instance
+  const cache = new Map<string, StatementSync>();
+  const CACHE_LIMIT = 500; // LRU-ish: prevent unbounded memory leak
+  statementCache.set(db, cache);
+  const origPrepare = db.prepare.bind(db);
+  db.prepare = (sql: string) => {
+    let stmt = cache.get(sql);
+    if (!stmt) {
+      if (cache.size >= CACHE_LIMIT) {
+        // Evict the oldest key (Map iterates in insertion order)
+        const firstKey = cache.keys().next().value;
+        if (firstKey) cache.delete(firstKey);
+      }
+      stmt = origPrepare(sql);
+      cache.set(sql, stmt);
+    }
+    return stmt;
+  };
+
   db.exec(readFileSync(join(HERE, 'schema.sql'), 'utf8'));
   migrate(db);
   return db;
