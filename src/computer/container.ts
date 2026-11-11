@@ -330,6 +330,11 @@ export async function exec(
   });
 }
 
+/** Shell-quote for the string macOS hands to `do shell script`, or bash `-lc`. */
+export function q(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
 /** Push one approved host file into the container's inbox. */
 export async function deliverFile(
   computer: Computer,
