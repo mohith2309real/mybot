@@ -5,6 +5,7 @@ import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
+import { q } from '../computer/container.ts';
 
 const run = promisify(execFile);
 
@@ -94,11 +95,6 @@ async function ensureSecret(): Promise<string> {
   await writeFile(SECRET_PATH, secret, { mode: 0o600 });
   await chmod(SECRET_PATH, 0o600);
   return secret;
-}
-
-/** Shell-quote for the string macOS hands to `do shell script`. */
-function q(value: string): string {
-  return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
 export interface EnableResult {

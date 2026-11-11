@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { openDb } from '../db/index.ts';
-import { containerName, exec, run } from './container.ts';
+import { containerName, exec, run, q } from './container.ts';
 
 /**
  * Merging two conversations' computers.
@@ -209,6 +209,6 @@ export async function syncWorkspace(fromConv: string, toConv: string, subpath = 
 
 /** A merged conversation's files, listed without copying anything. */
 export async function peekWorkspace(conversationId: string, subpath = '.'): Promise<string> {
-  const r = await exec(conversationId, `ls -la ${JSON.stringify(`/workspace/${subpath}`)}`);
+  const r = await exec(conversationId, `ls -la ${q(`/workspace/${subpath}`)}`);
   return r.code === 0 ? r.stdout.trim() : r.stderr.trim();
 }
